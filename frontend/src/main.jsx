@@ -7,6 +7,7 @@ import Pos from "./pages/Pos";
 import Product from "./pages/Product";
 import Receipt from "./pages/Receipt";
 import Report from "./pages/Report";
+import AddCustomer from "./pages/AddCustomer";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 createRoot(document.getElementById("root")).render(
@@ -20,6 +21,7 @@ createRoot(document.getElementById("root")).render(
           <Route path="product/:id" element={<Product />} />
           <Route path="receipt" element={<Receipt />} />
           <Route path="report" element={<Report />} />
+          <Route path="add-customer" element={<AddCustomer />} />
         </Route>
       </Routes>
     </BrowserRouter>

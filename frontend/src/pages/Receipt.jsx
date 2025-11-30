@@ -61,6 +61,13 @@ export default function Receipt() {
           letter-spacing: 0.5px !important;
           font-family: 'Arial', 'Helvetica', sans-serif !important;
         }
+        .print-area .customer-info {
+          font-size: 16px !important;
+          font-weight: 900 !important;
+          text-align: center !important;
+          margin: 4px 0 !important;
+          font-family: 'Arial', 'Helvetica', sans-serif !important;
+        }
         .print-area .date-info { 
           font-size: 14px !important; 
           text-align: center !important;
@@ -164,60 +171,140 @@ export default function Receipt() {
 
   if (!payload) return null;
 
-  const { items = [], total } = payload;
+  const { items = [], total, customer } = payload;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 p-6" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
+    <div
+      className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 p-6"
+      style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+    >
       <div className="max-w-[400px] mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden">
         {/* Screen Preview Header */}
         <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-4">
-          <h2 className="text-2xl font-bold text-white text-center" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>Receipt Generated</h2>
+          <h2
+            className="text-2xl font-bold text-white text-center"
+            style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+          >
+            Receipt Generated
+          </h2>
         </div>
 
         {/* Receipt Preview */}
         <div className="p-6">
-          <div className="print-area bg-white border-2 border-gray-300 p-4 rounded-lg" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
+          <div
+            className="print-area bg-white border-2 border-gray-300 p-4 rounded-lg"
+            style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+          >
             {/* Store Name */}
-            <h3 className="store-name text-xl font-bold text-center mb-2 tracking-wide" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
-              BILAL CHICKEN SALES
+            <h3
+              className="store-name text-xl font-bold text-center mb-2 tracking-wide"
+              style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+            >
+              Bilal Poultry Traders Proprietors Sh M Ahmad 0331-3939373 Sh M
+              Bilal 0331-4108643 Sh M Usman 0326-0188883
             </h3>
 
             <div className="divider border-t-2 border-gray-800 my-3"></div>
 
+            {/* Customer Information */}
+            {customer && (
+              <>
+                <div
+                  className="customer-info text-lg font-bold text-center text-gray-900 mb-2"
+                  style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+                >
+                  Customer: {customer.name}
+                </div>
+                <div className="divider border-t-2 border-gray-800 my-3"></div>
+              </>
+            )}
+
             {/* Date */}
-            <div className="date-info text-sm text-center text-gray-700 mb-3" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
-              {new Date(payload.createdAt).toLocaleString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
+            <div
+              className="date-info text-sm text-center text-gray-700 mb-3"
+              style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+            >
+              {new Date(payload.createdAt).toLocaleString("en-US", {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
               })}
             </div>
 
             <div className="divider border-t-2 border-gray-800 my-3"></div>
 
-            {/* Items Table */}
-            <table className="w-full border-collapse text-sm" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
+            {/* Customer Info */}
+            {payload.customer && (
+              <div
+                className="text-sm text-center text-gray-700 mb-3"
+                style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+              >
+                <p className="font-semibold">
+                  Customer: {payload.customer.name}
+                </p>
+              </div>
+            )}
+
+            <div className="divider border-t-2 border-gray-800 my-3"></div>
+            <table
+              className="w-full border-collapse text-sm"
+              style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+            >
               <thead>
                 <tr>
-                  <th className="text-left border-b-2 border-gray-800 pb-1 font-bold" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>Item</th>
-                  <th className="text-center border-b-2 border-gray-800 pb-1 font-bold" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>Qty</th>
-                  <th className="text-right border-b-2 border-gray-800 pb-1 font-bold" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>Price</th>
-                  <th className="text-right border-b-2 border-gray-800 pb-1 font-bold" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>Total</th>
+                  <th
+                    className="text-left border-b-2 border-gray-800 pb-1 font-bold"
+                    style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+                  >
+                    Item
+                  </th>
+                  <th
+                    className="text-center border-b-2 border-gray-800 pb-1 font-bold"
+                    style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+                  >
+                    Qty
+                  </th>
+                  <th
+                    className="text-right border-b-2 border-gray-800 pb-1 font-bold"
+                    style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+                  >
+                    Price
+                  </th>
+                  <th
+                    className="text-right border-b-2 border-gray-800 pb-1 font-bold"
+                    style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+                  >
+                    Total
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((it, idx) => (
                   <tr key={it.productId || idx}>
-                    <td className="py-1.5 align-top" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
+                    <td
+                      className="py-1.5 align-top"
+                      style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+                    >
                       <div className="max-w-[120px] break-words">{it.name}</div>
                     </td>
-                    <td className="py-1.5 text-center align-top" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>{it.qty}</td>
-                    <td className="py-1.5 text-right align-top" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
+                    <td
+                      className="py-1.5 text-center align-top"
+                      style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+                    >
+                      {it.qty}
+                    </td>
+                    <td
+                      className="py-1.5 text-right align-top"
+                      style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+                    >
                       {Number((it.price || 0) * (it.factor || 1)).toFixed(2)}
                     </td>
-                    <td className="py-1.5 text-right align-top font-semibold" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
+                    <td
+                      className="py-1.5 text-right align-top font-semibold"
+                      style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+                    >
                       {Number(it.lineTotal).toFixed(2)}
                     </td>
                   </tr>
@@ -227,27 +314,60 @@ export default function Receipt() {
 
             {/* Total Section */}
             <div className="total-section border-t-2 border-gray-800 mt-4 pt-3">
-              <div className="total-row flex justify-between items-center text-lg font-bold" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
+              <div
+                className="total-row flex justify-between items-center text-lg font-bold"
+                style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+              >
                 <span>TOTAL:</span>
                 <span>Rs {Number(total || 0).toFixed(2)}</span>
               </div>
+              {payload.paid !== undefined && (
+                <div
+                  className="total-row flex justify-between items-center text-sm mt-2"
+                  style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+                >
+                  <span>Paid:</span>
+                  <span>Rs {Number(payload.paid || 0).toFixed(2)}</span>
+                </div>
+              )}
+              {payload.change !== undefined && (
+                <div
+                  className="total-row flex justify-between items-center text-sm"
+                  style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+                >
+                  <span>Change:</span>
+                  <span>Rs {Number(payload.change || 0).toFixed(2)}</span>
+                </div>
+              )}
             </div>
 
             <div className="divider border-t-2 border-gray-800 my-3"></div>
 
             {/* Footer */}
-            <div className="footer-text text-sm text-center text-gray-600 mt-4" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
+            <div
+              className="footer-text text-sm text-center text-gray-600 mt-4"
+              style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+            >
               Thank You For Your Purchase!
             </div>
-            
           </div>
 
           {/* Server Response */}
           {serverResp && serverResp.id && (
-            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
+            <div
+              className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg"
+              style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+            >
               <p className="text-sm text-green-800">
-                <span className="font-semibold">Receipt ID:</span> {serverResp.id}
+                <span className="font-semibold">Receipt ID:</span>{" "}
+                {serverResp.id}
               </p>
+              {customer && (
+                <p className="text-sm text-green-800 mt-1">
+                  <span className="font-semibold">Customer:</span>{" "}
+                  {customer.name}
+                </p>
+              )}
             </div>
           )}
 
@@ -256,14 +376,14 @@ export default function Receipt() {
             <button
               onClick={() => window.print()}
               className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white border-none font-bold text-base shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer"
-              style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}
+              style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
             >
               🖨 Print Receipt
             </button>
             <button
               onClick={() => navigate("/pos")}
               className="flex-1 py-3 px-4 rounded-xl border-2 border-purple-300 bg-white text-purple-600 font-bold text-base hover:bg-purple-50 transition-all duration-300 cursor-pointer"
-              style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}
+              style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
             >
               ✓ Done
             </button>

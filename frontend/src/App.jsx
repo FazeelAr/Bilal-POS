@@ -2,7 +2,7 @@ import "./App.css";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import { Outlet } from "react-router-dom";
-import { CartProvider } from "./context/CartContext";
+import { CartProvider } from "./context/CartProvider"; // CHANGE THIS IMPORT
 
 function App() {
   return (

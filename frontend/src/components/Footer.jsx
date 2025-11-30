@@ -8,14 +8,16 @@ function Footer() {
       <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
       <div className="absolute top-0 left-1/4 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl"></div>
       <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-pink-500/10 rounded-full blur-3xl"></div>
-      
+
       <div className="container mx-auto px-4 text-center relative z-10">
         <div className="flex items-center justify-center gap-2 mb-3">
-          <span className="text-gray-300 text-sm font-medium">Crafted with</span>
+          <span className="text-gray-300 text-sm font-medium">
+            Crafted with
+          </span>
           <Heart className="w-4 h-4 text-pink-500 fill-pink-500 animate-pulse" />
           <span className="text-gray-300 text-sm font-medium">by</span>
         </div>
-        
+
         <a
           href="https://famtrixsolutions.com"
           target="_blank"
@@ -25,9 +27,10 @@ function Footer() {
           <span className="text-lg">famtrixsolutions.com</span>
           <ExternalLink className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
         </a>
-        
+
         <div className="mt-4 text-gray-400 text-xs">
-          © 2024 Bilal Chicken Sales Center. All rights reserved.
+          © {new Date().getFullYear()} Bilal Poultry Traders. All rights
+          reserved.
         </div>
       </div>
     </footer>

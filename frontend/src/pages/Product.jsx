@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { apiGet, apiPatch } from "../api/api";
-import { useCart } from "../context/CartContext";
+import { useCart } from "../context/useCart";
 
 export default function Product() {
   const { id } = useParams();
@@ -19,7 +19,7 @@ export default function Product() {
         const res = await apiGet(`pricing/products/`);
         if (res?.data) {
           // Find the product with matching id
-          const foundProduct = res.data.find(p => p.id === parseInt(id));
+          const foundProduct = res.data.find((p) => p.id === parseInt(id));
           if (foundProduct) {
             setProduct(foundProduct);
             setPrice(foundProduct.price ?? "");
@@ -105,7 +105,6 @@ export default function Product() {
             {saving ? "Saving..." : "Save"}
           </button>
 
-          
           <button
             type="button"
             onClick={() => navigate(-1)}
