@@ -1,13 +1,6 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import {
-  FileText,
-  ChevronRight,
-  Home,
-  ShoppingCart,
-  BarChart3,
-  Users,
-} from "lucide-react";
+import { Home, BarChart3, UserPlus } from "lucide-react";
 
 function Header() {
   const navigate = useNavigate();
@@ -34,6 +27,10 @@ function Header() {
     return location.pathname.startsWith(path);
   };
 
+  const handleAddCustomer = () => {
+    navigate("/add-customer");
+  };
+
   return (
     <header className="bg-gradient-to-r from-purple-600 via-pink-500 to-rose-500 shadow-xl relative overflow-hidden">
       {/* Decorative background elements */}
@@ -45,32 +42,39 @@ function Header() {
         {/* Main header row */}
         <div className="flex items-center justify-between mb-3">
           {/* Logo and Title Section */}
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-2xl">🐔</span>
-              </div>
-              <div>
-                <h1 className="text-white text-2xl font-bold tracking-tight">
-                  Bilal Poultry Traders
-                </h1>
-                <div className="flex items-center gap-3 mt-0.5">
-                  <span className="text-white/90 text-xs flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
-                    Fresh poultry rates
-                  </span>
-                  <span className="text-white/80 text-xs">•</span>
-                  <span className="text-white/90 text-xs">Quick sales</span>
-                  <span className="text-white/80 text-xs">•</span>
-                  <span className="text-white/90 text-xs">Trusted service</span>
-                </div>
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center shadow-lg">
+              <span className="text-2xl">🐔</span>
+            </div>
+            <div>
+              <h1 className="text-white text-2xl font-bold tracking-tight">
+                Bilal Poultry Traders
+              </h1>
+              <div className="flex items-center gap-3 mt-0.5">
+                <span className="text-white/90 text-xs flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
+                  Fresh poultry rates
+                </span>
+                <span className="text-white/80 text-xs">•</span>
+                <span className="text-white/90 text-xs">Quick sales</span>
+                <span className="text-white/80 text-xs">•</span>
+                <span className="text-white/90 text-xs">Trusted service</span>
               </div>
             </div>
           </div>
+
+          {/* Add Customer Button */}
+          <button
+            onClick={handleAddCustomer}
+            className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-4 py-2 rounded-lg transition-all duration-200 font-semibold shadow-lg hover:shadow-xl flex items-center gap-2"
+          >
+            <UserPlus className="w-4 h-4" />
+            Add Customer
+          </button>
         </div>
 
-        {/* Navigation - Centered */}
-        <nav className="flex items-center justify-center gap-1">
+        {/* Navigation - Centered with larger buttons */}
+        <nav className="flex items-center justify-center gap-2">
           {navigationItems.map((item) => {
             const Icon = item.icon;
             const isActive = isActivePath(item.path);
@@ -78,13 +82,13 @@ function Header() {
               <button
                 key={item.path}
                 onClick={() => navigate(item.path)}
-                className={`group flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+                className={`group flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
                   isActive
-                    ? "bg-white/25 text-white shadow-md backdrop-blur-sm border border-white/30"
-                    : "text-white/90 hover:text-white hover:bg-white/15 border border-transparent"
+                    ? "bg-white/25 text-white shadow-lg backdrop-blur-sm border border-white/30 transform scale-105"
+                    : "text-white/90 hover:text-white hover:bg-white/15 border border-transparent hover:border-white/20"
                 }`}
               >
-                <Icon className="w-3.5 h-3.5" />
+                <Icon className="w-4.5 h-4.5" />
                 {item.label}
               </button>
             );

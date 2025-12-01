@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useCart } from "../context/useCart";
 import {
   ShoppingCart,
@@ -7,9 +6,12 @@ import {
   AlertCircle,
   Printer,
   CheckCircle,
+  CreditCard,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { apiPost } from "../api/api";
 
-export default function Cart({ selectedCustomer = null }) {
+export default function Cart() {
   const {
     cart,
     updateQuantity,
@@ -18,37 +20,102 @@ export default function Cart({ selectedCustomer = null }) {
     itemTotal,
     grandTotal,
     isCheckoutDisabled,
+    handleCheckout,
+    currentCustomer,
+    clearCart,
+    clearCustomer,
   } = useCart();
 
+  const [processingFullPayment, setProcessingFullPayment] = useState(false);
   const navigate = useNavigate();
-  const [amountPaid, setAmountPaid] = useState("");
 
-  const checkoutDisabled = isCheckoutDisabled() || !selectedCustomer;
+  const handleFullPayment = async () => {
+    if (isCheckoutDisabled()) {
+      if (!currentCustomer) {
+        alert("Please select a customer before payment");
+      } else {
+        alert("Cannot checkout: fix invalid items");
+      }
+      return;
+    }
 
-  const localHandleCheckout = () => {
-    if (checkoutDisabled) return;
+    if (!cart || cart.length === 0) {
+      alert("Cart is empty");
+      return;
+    }
 
-    const items = cart.map((it) => ({
-      productId: it.productId,
-      productPriceId: it.productPriceId,
-      name: it.name,
-      qty: Number(it.qty) || 0,
-      factor: Number(it.factor) || 1,
-      price: Number(it.price) || 0,
-      lineTotal: Number(itemTotal(it)) || 0,
-    }));
+    setProcessingFullPayment(true);
 
-    const paid = Number(amountPaid) || 0;
-    const payload = {
-      items,
-      total: Number(grandTotal) || 0,
-      createdAt: new Date().toISOString(),
-      customer: selectedCustomer,
-      paid,
-      change: paid - Number(grandTotal || 0),
-    };
+    try {
+      const items = cart.map((it) => ({
+        product: it.productId,
+        quantity: Number(it.qty),
+        factor: Number(it.factor) || 1,
+        price: (Number(it.price) || 0) * (Number(it.factor) || 1),
+      }));
 
-    navigate("/receipt", { state: { payload } });
+      const payload = {
+        items,
+        customer: currentCustomer.id,
+        payment_amount: grandTotal,
+        payment_method: "cash",
+        payment_status: "paid",
+        total_amount: grandTotal,
+        balance_due: 0,
+      };
+
+      let backendOrder = null;
+
+      try {
+        const res = await apiPost("sales/orders/create-with-payment/", payload);
+        backendOrder = res.data;
+      } catch (err) {
+        console.error("Full payment checkout failed", err);
+        alert("Payment failed – but showing receipt anyway.");
+      }
+
+      const itemsPayload = cart.map((it) => {
+        const qty = Number(it.qty) || 0;
+        const factor = Number(it.factor) || 1;
+        const price = Number(it.price) || 0;
+        const lineTotal = price * qty * factor;
+        return {
+          productPriceId: it.productPriceId,
+          productId: it.productId,
+          name: it.name,
+          qty,
+          factor,
+          price,
+          lineTotal,
+        };
+      });
+
+      const receiptPayload = {
+        items: itemsPayload,
+        total: grandTotal,
+        createdAt: new Date().toISOString(),
+        customer: currentCustomer,
+        payment_amount: grandTotal,
+        balance_due: 0,
+        payment_status: "paid",
+      };
+
+      navigate("/receipt", {
+        state: {
+          payload: receiptPayload,
+          response: backendOrder,
+          message: "Full payment completed successfully!",
+        },
+      });
+
+      clearCart();
+      clearCustomer();
+    } catch (err) {
+      console.error("Full payment error", err);
+      alert(err.response?.data?.message || "Payment failed. Please try again.");
+    } finally {
+      setProcessingFullPayment(false);
+    }
   };
 
   return (
@@ -79,7 +146,7 @@ export default function Cart({ selectedCustomer = null }) {
           </p>
         </div>
       ) : (
-        <div className="pb-28 h-[calc(100vh-200px)] overflow-y-auto pr-2">
+        <div className="pb-36 h-[calc(100vh-200px)] overflow-y-auto pr-2">
           <div className="grid grid-cols-2 gap-2">
             {cart.map((it) => {
               const quantity = Number(it.qty) || 0;
@@ -226,79 +293,72 @@ export default function Cart({ selectedCustomer = null }) {
       {cart.length > 0 && (
         <div
           className={`absolute bottom-0 left-0 right-0 p-4 rounded-b-2xl shadow-lg backdrop-blur-md transition-all duration-200 ${
-            checkoutDisabled
+            isCheckoutDisabled()
               ? "bg-gradient-to-r from-gray-400 to-gray-500"
               : "bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600"
           }`}
         >
-          <div className="flex justify-between items-center">
-            <div>
-              <div className="text-xs text-white/80 mb-0.5 font-medium">
-                Grand Total
+          <div className="space-y-3">
+            {/* Total Display */}
+            <div className="flex justify-between items-center">
+              <div>
+                <div className="text-xs text-white/80 mb-0.5 font-medium">
+                  Grand Total
+                </div>
+                <div className="text-2xl font-bold text-white mb-0.5">
+                  Rs {grandTotal.toFixed(2)}
+                </div>
+                {isCheckoutDisabled() ? (
+                  <div className="flex items-center gap-1 text-[10px] text-white/90 font-semibold bg-white/20 px-2 py-0.5 rounded-full w-fit">
+                    <AlertCircle className="w-2.5 h-2.5" />
+                    Fix invalid items to checkout
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 text-[10px] text-white/90 font-semibold">
+                    <CheckCircle className="w-2.5 h-2.5" />
+                    Ready to checkout
+                  </div>
+                )}
               </div>
-              <div className="text-2xl font-bold text-white mb-0.5">
-                Rs {grandTotal.toFixed(2)}
-              </div>
-              {!selectedCustomer ? (
-                <div className="flex items-center gap-1 text-[10px] text-white/90 font-semibold bg-white/20 px-2 py-0.5 rounded-full w-fit">
-                  <AlertCircle className="w-2.5 h-2.5" />
-                  Select customer to checkout
-                </div>
-              ) : isCheckoutDisabled() ? (
-                <div className="flex items-center gap-1 text-[10px] text-white/90 font-semibold bg-white/20 px-2 py-0.5 rounded-full w-fit">
-                  <AlertCircle className="w-2.5 h-2.5" />
-                  Fix invalid items to checkout
-                </div>
-              ) : (
-                <div className="flex items-center gap-1 text-[10px] text-white/90 font-semibold">
-                  <CheckCircle className="w-2.5 h-2.5" />
-                  Ready to checkout
-                </div>
-              )}
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="flex flex-col">
-                <label className="text-[11px] text-white/90 font-semibold mb-1">
-                  Amount Paid
-                </label>
-                <input
-                  inputMode="numeric"
-                  pattern="\d*(\.\d+)?"
-                  value={amountPaid}
-                  onChange={(e) => setAmountPaid(e.target.value)}
-                  className="w-36 p-2 rounded-lg text-sm font-semibold text-purple-700"
-                  placeholder="0.00"
-                />
-                <div className="text-[11px] text-white/90 mt-1">
-                  Change: Rs{" "}
-                  {(
-                    (Number(amountPaid) || 0) - Number(grandTotal || 0)
-                  ).toFixed(2)}
-                </div>
-              </div>
-
+            {/* Payment Buttons Row */}
+            <div className="flex gap-2">
+              {/* Full Payment Button */}
               <button
-                onClick={localHandleCheckout}
-                disabled={checkoutDisabled}
-                type="button"
-                className={`group py-2.5 px-6 rounded-xl border-none font-semibold text-sm shadow-lg transition-all duration-200 flex items-center gap-2 ${
-                  checkoutDisabled
+                onClick={handleFullPayment}
+                disabled={isCheckoutDisabled() || processingFullPayment}
+                className={`flex-1 py-3 px-4 rounded-xl border-none font-semibold text-sm shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${
+                  isCheckoutDisabled() || processingFullPayment
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed opacity-70"
+                    : "bg-gradient-to-r from-green-500 to-emerald-600 text-white cursor-pointer hover:scale-105 hover:shadow-xl"
+                }`}
+              >
+                {processingFullPayment ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="w-4 h-4" />
+                    Full Payment
+                  </>
+                )}
+              </button>
+
+              {/* Regular Checkout Button */}
+              <button
+                onClick={handleCheckout}
+                disabled={isCheckoutDisabled()}
+                className={`flex-1 py-3 px-4 rounded-xl border-none font-semibold text-sm shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${
+                  isCheckoutDisabled()
                     ? "bg-gray-300 text-gray-500 cursor-not-allowed opacity-70"
                     : "bg-white text-purple-600 cursor-pointer hover:scale-105 hover:shadow-xl"
                 }`}
               >
-                {checkoutDisabled ? (
-                  <>
-                    <AlertCircle className="w-4 h-4" />
-                    Cannot Checkout
-                  </>
-                ) : (
-                  <>
-                    <Printer className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                    Checkout & Print
-                  </>
-                )}
+                <Printer className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                Checkout
               </button>
             </div>
           </div>
