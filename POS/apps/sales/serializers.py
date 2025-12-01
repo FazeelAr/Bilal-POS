@@ -1,84 +1,139 @@
 from rest_framework import serializers
-from .models import Order, OrderItem, DailySalesSummary
-from apps.pricing.models import Product, ProductPrice
+from .models import Client, Order, OrderItem
+from django.db import transaction
 
 
-class OrderItemSerializer(serializers.ModelSerializer):
-    product_name = serializers.CharField(source='product.name', read_only=True)
-
+class ClientSerializer(serializers.ModelSerializer):
+    """Serializer for Client model"""
+    starting_balance = serializers.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        write_only=True,
+        required=False
+    )
+    
     class Meta:
-        model = OrderItem
-        fields = [
-            'product', 
-            'product_name',
-            'quantity',
-            'factor',
-            'unit_price_on_sale',
-            'line_total'
-        ]
-        read_only_fields = ['unit_price_on_sale', 'line_total', 'product_name']
-
-
-class OrderSerializer(serializers.ModelSerializer):
-    items = OrderItemSerializer(many=True)
-    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
-
-    class Meta:
-        model = Order
-        fields = ['id', 'user', 'created_at', 'total_amount', 'items']
-        read_only_fields = ['total_amount', 'created_at']
-
+        model = Client
+        fields = ['id', 'name', 'balance', 'starting_balance']
+        read_only_fields = ['id']
+    
     def create(self, validated_data):
-        items_data = validated_data.pop('items')
-        user = validated_data.get('user')
+        starting_balance = validated_data.pop('starting_balance', 0)
+        validated_data['balance'] = starting_balance
+        return super().create(validated_data)
 
-        total_amount = 0
-        order = Order.objects.create(user=user, total_amount=0)
 
+class OrderItemCreateSerializer(serializers.Serializer):
+    """Serializer for creating order items"""
+    product = serializers.CharField()  # Item ID
+    quantity = serializers.DecimalField(max_digits=10, decimal_places=2)
+    factor = serializers.DecimalField(max_digits=10, decimal_places=2, default=1)
+    price = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+
+
+class OrderCreateSerializer(serializers.Serializer):
+    """Serializer for creating orders"""
+    customer = serializers.CharField()  # Client ID
+    items = OrderItemCreateSerializer(many=True)
+    
+    def validate_items(self, value):
+        if not value:
+            raise serializers.ValidationError("Order must have at least one item")
+        return value
+    
+    @transaction.atomic
+    def create(self, validated_data):
+        from apps.pricing.models import Item
+        from datetime import date
+        
+        customer_id = validated_data['customer']
+        items_data = validated_data['items']
+        
+        # Get customer
+        try:
+            customer = Client.objects.get(id=customer_id)
+        except Client.DoesNotExist:
+            raise serializers.ValidationError({"customer": "Customer not found"})
+        
+        # Calculate total and prepare order items
+        order_total = 0
+        order_items_to_create = []
+        
         for item_data in items_data:
-            product = item_data['product']
+            try:
+                product = Item.objects.get(id=item_data['product'])
+            except Item.DoesNotExist:
+                raise serializers.ValidationError({
+                    "items": f"Product {item_data['product']} not found"
+                })
+            
             quantity = item_data['quantity']
             factor = item_data.get('factor', 1)
-
-            # ⭐ Get the current price from ProductPrice table
-            try:
-                product_price = ProductPrice.objects.get(product=product)
-                unit_price = product_price.price
-            except ProductPrice.DoesNotExist:
-                raise serializers.ValidationError(
-                    f"Price not found for product: {product.name}"
-                )
-
-            line_total = unit_price * quantity * factor
-            total_amount += line_total
-
+            
+            # Calculate final price: base_price * factor
+            final_price = product.price * factor
+            line_total = final_price * quantity
+            
+            order_total += line_total
+            
+            order_items_to_create.append({
+                'item': product,
+                'quantity': quantity,
+                'price': final_price,  # Store the factored price
+            })
+        
+        # Create order
+        order = Order.objects.create(
+            customer=customer,
+            total=order_total,
+            date=date.today()
+        )
+        
+        # Create order items
+        for item_data in order_items_to_create:
             OrderItem.objects.create(
                 order=order,
-                product=product,
-                quantity=quantity,
-                factor=factor,
-                unit_price_on_sale=unit_price,
-                line_total=line_total
+                item=item_data['item'],
+                quantity=item_data['quantity'],
+                price=item_data['price']
             )
-
-        order.total_amount = total_amount
-        order.save()
-
-        # update daily summary
-        from datetime import date
-        summary, _ = DailySalesSummary.objects.get_or_create(date=date.today())
-        summary.total_sales += total_amount
-        summary.save()
-
+        
+        # Update customer balance (add order total to balance - representing debt)
+        customer.balance += order_total
+        customer.save()
+        
         return order
 
 
-class DailySalesSummarySerializer(serializers.ModelSerializer):
+class OrderItemSerializer(serializers.ModelSerializer):
+    """Serializer for OrderItem"""
+    item_name = serializers.CharField(source='item.name', read_only=True)
+    line_total = serializers.SerializerMethodField()
+    
     class Meta:
-        model = DailySalesSummary
-        fields = ['date', 'total_sales']
+        model = OrderItem
+        fields = ['id', 'item', 'item_name', 'quantity', 'price', 'line_total']
+    
+    def get_line_total(self, obj):
+        return obj.quantity * obj.price
 
 
-class MonthlySalesSerializer(serializers.Serializer):
-    month = serializers.CharField()
-    total_sales = serializers.DecimalField(max_digits=12, decimal_places=2)
+class OrderSerializer(serializers.ModelSerializer):
+    """Serializer for Order"""
+    items = OrderItemSerializer(many=True, read_only=True)
+    customer_name = serializers.CharField(source='client.name', read_only=True)
+    
+    class Meta:
+        model = Order
+        fields = ['id', 'client', 'customer_name', 'total', 'date', 'items']
+        read_only_fields = ['id', 'total', 'date']
+
+
+class ReceiptSerializer(serializers.Serializer):
+    """Serializer for receipt data (just for logging/storage if needed)"""
+    items = serializers.ListField()
+    total = serializers.DecimalField(max_digits=10, decimal_places=2)
+    createdAt = serializers.DateTimeField()
+    customer = serializers.DictField()
+    paid = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    change = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)

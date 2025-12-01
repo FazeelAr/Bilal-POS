@@ -1,16 +1,20 @@
 from django.contrib import admin
-from .models import Product, ProductPrice
+from .models import Item
 
 
-@admin.register(Product)
-class ProductAdmin(admin.ModelAdmin):
-    list_display = ("id", "name")
-    search_fields = ("name",)
-
-
-@admin.register(ProductPrice)
-class ProductPriceAdmin(admin.ModelAdmin):
-    list_display = ("id", "product", "price", "effective_date", "updated_by")
-    list_filter = ("effective_date",)
-    search_fields = ("product__name",)
-    autocomplete_fields = ("product", "updated_by")
+@admin.register(Item)
+class ItemAdmin(admin.ModelAdmin):
+    """Admin interface for Item model"""
+    list_display = ('id', 'name', 'price')
+    search_fields = ('id', 'name')
+    list_filter = ('price',)
+    ordering = ('name',)
+    
+    fieldsets = (
+        ('Product Information', {
+            'fields': ('id', 'name')
+        }),
+        ('Pricing', {
+            'fields': ('price',)
+        }),
+    )

@@ -1,7 +1,10 @@
-from django.urls import path
-from . import views
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views import ItemViewSet
+
+router = DefaultRouter()
+router.register(r'products', ItemViewSet, basename='product')
 
 urlpatterns = [
-    path("products/", views.ProductPriceListView.as_view(), name="product-list"),
-    path("products/<int:pk>/update-price/", views.ProductPriceUpdateView.as_view(), name="product-update-price"),
+    path('', include(router.urls)),
 ]

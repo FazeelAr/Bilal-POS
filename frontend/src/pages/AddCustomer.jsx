@@ -58,7 +58,7 @@ export default function AddCustomer() {
       console.error("Error adding customer:", err);
       setError(
         err.response?.data?.message ||
-          "Failed to add customer. Please try again."
+        "Failed to add customer. Please try again."
       );
     } finally {
       setLoading(false);

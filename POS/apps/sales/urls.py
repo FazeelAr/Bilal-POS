@@ -1,13 +1,11 @@
-from django.urls import path
-from . import views
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views import ClientViewSet, OrderViewSet, receipt_view
+
+router = DefaultRouter()
+router.register(r'orders', OrderViewSet, basename='order')
 
 urlpatterns = [
-    # order processing
-    path("orders/create/", views.OrderCreateView.as_view(), name="order-create"),
-
-    # reports
-    path("reports/daily/", views.DailySalesReportView.as_view(), name="daily-report"),
-    path("reports/monthly/", views.MonthlySalesReportView.as_view(), name="monthly-report"),
-
-    # products
+    path('', include(router.urls)),
+    path('receipt/', receipt_view, name='receipt'),
 ]
