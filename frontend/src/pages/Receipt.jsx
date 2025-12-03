@@ -206,14 +206,21 @@ export default function Receipt() {
 
             <div className="divider border-t-2 border-gray-800 my-3"></div>
 
-            {/* Customer Information */}
+            {/* Customer Information + Sale ID */}
             {customer && (
               <>
                 <div
                   className="customer-info text-lg font-bold text-center text-gray-900 mb-2"
                   style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
                 >
-                  Customer: {customer.name}
+                  Customer:{" "}
+                  {typeof customer === "object" ? customer.name : customer}
+                </div>
+                <div className="text-sm text-center text-gray-700 mb-2">
+                  <span className="font-semibold">Sale ID:</span>{" "}
+                  {serverResp && serverResp.id
+                    ? serverResp.id
+                    : payload.saleId || "-"}
                 </div>
                 <div className="divider border-t-2 border-gray-800 my-3"></div>
               </>
@@ -235,19 +242,7 @@ export default function Receipt() {
 
             <div className="divider border-t-2 border-gray-800 my-3"></div>
 
-            {/* Customer Info */}
-            {payload.customer && (
-              <div
-                className="text-sm text-center text-gray-700 mb-3"
-                style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
-              >
-                <p className="font-semibold">
-                  Customer: {payload.customer.name}
-                </p>
-              </div>
-            )}
-
-            <div className="divider border-t-2 border-gray-800 my-3"></div>
+            {/* (customer displayed above) */}
             <table
               className="w-full border-collapse text-sm"
               style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
