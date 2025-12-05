@@ -6,7 +6,7 @@ import {
   AlertCircle,
   Printer,
   CheckCircle,
-  CreditCard,
+  DollarSign,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { apiPost } from "../api/api";
@@ -26,10 +26,11 @@ export default function Cart() {
     clearCustomer,
   } = useCart();
 
-  const [processingFullPayment, setProcessingFullPayment] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [processingPayment, setProcessingPayment] = useState(false);
   const navigate = useNavigate();
 
-  const handleFullPayment = async () => {
+  const handlePayment = async () => {
     if (isCheckoutDisabled()) {
       if (!currentCustomer) {
         alert("Please select a customer before payment");
@@ -44,7 +45,18 @@ export default function Cart() {
       return;
     }
 
-    setProcessingFullPayment(true);
+    const payment = parseFloat(paymentAmount);
+    if (isNaN(payment) || payment <= 0) {
+      alert("Please enter a valid payment amount");
+      return;
+    }
+
+    if (payment > grandTotal) {
+      alert("Payment amount cannot be greater than total amount");
+      return;
+    }
+
+    setProcessingPayment(true);
 
     try {
       const items = cart.map((it) => ({
@@ -54,14 +66,17 @@ export default function Cart() {
         price: (Number(it.price) || 0) * (Number(it.factor) || 1),
       }));
 
+      const payment_status = payment === grandTotal ? "paid" : "partial";
+      const balance_due = grandTotal - payment;
+
       const payload = {
         items,
         customer: currentCustomer.id,
-        payment_amount: grandTotal,
+        payment_amount: payment,
         payment_method: "cash",
-        payment_status: "paid",
+        payment_status: payment_status,
         total_amount: grandTotal,
-        balance_due: 0,
+        balance_due: balance_due,
       };
 
       let backendOrder = null;
@@ -70,7 +85,7 @@ export default function Cart() {
         const res = await apiPost("sales/orders/create-with-payment/", payload);
         backendOrder = res.data;
       } catch (err) {
-        console.error("Full payment checkout failed", err);
+        console.error("Payment checkout failed", err);
         alert("Payment failed – but showing receipt anyway.");
       }
 
@@ -95,28 +110,44 @@ export default function Cart() {
         total: grandTotal,
         createdAt: new Date().toISOString(),
         customer: currentCustomer,
-        payment_amount: grandTotal,
-        balance_due: 0,
-        payment_status: "paid",
+        payment_amount: payment,
+        balance_due: balance_due,
+        payment_status: payment_status,
       };
 
       navigate("/receipt", {
         state: {
           payload: receiptPayload,
           response: backendOrder,
-          message: "Full payment completed successfully!",
+          message:
+            payment_status === "paid"
+              ? "Payment completed successfully!"
+              : "Partial payment received!",
         },
       });
 
       clearCart();
       clearCustomer();
     } catch (err) {
-      console.error("Full payment error", err);
+      console.error("Payment error", err);
       alert(err.response?.data?.message || "Payment failed. Please try again.");
     } finally {
-      setProcessingFullPayment(false);
+      setProcessingPayment(false);
     }
   };
+
+  const handleFullPayment = () => {
+    setPaymentAmount(grandTotal.toFixed(2));
+  };
+
+  const calculateChange = () => {
+    const payment = parseFloat(paymentAmount);
+    if (isNaN(payment) || payment <= 0) return 0;
+    if (payment < grandTotal) return 0;
+    return payment - grandTotal;
+  };
+
+  const changeAmount = calculateChange();
 
   return (
     <aside className="w-[500px] min-h-screen bg-gradient-to-br from-white to-purple-50 p-4 rounded-2xl shadow-lg border border-purple-100 relative">
@@ -146,7 +177,7 @@ export default function Cart() {
           </p>
         </div>
       ) : (
-        <div className="pb-36 h-[calc(100vh-200px)] overflow-y-auto pr-2">
+        <div className="pb-48 h-[calc(100vh-200px)] overflow-y-auto pr-2">
           <div className="grid grid-cols-2 gap-2">
             {cart.map((it) => {
               const quantity = Number(it.qty) || 0;
@@ -298,7 +329,7 @@ export default function Cart() {
               : "bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600"
           }`}
         >
-          <div className="space-y-3">
+          <div className="space-y-4">
             {/* Total Display */}
             <div className="flex justify-between items-center">
               <div>
@@ -316,50 +347,89 @@ export default function Cart() {
                 ) : (
                   <div className="flex items-center gap-1 text-[10px] text-white/90 font-semibold">
                     <CheckCircle className="w-2.5 h-2.5" />
-                    Ready to checkout
+                    Ready for payment
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Payment Buttons Row */}
-            <div className="flex gap-2">
-              {/* Full Payment Button */}
-              <button
-                onClick={handleFullPayment}
-                disabled={isCheckoutDisabled() || processingFullPayment}
-                className={`flex-1 py-3 px-4 rounded-xl border-none font-semibold text-sm shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${
-                  isCheckoutDisabled() || processingFullPayment
-                    ? "bg-gray-300 text-gray-500 cursor-not-allowed opacity-70"
-                    : "bg-gradient-to-r from-green-500 to-emerald-600 text-white cursor-pointer hover:scale-105 hover:shadow-xl"
-                }`}
-              >
-                {processingFullPayment ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <CreditCard className="w-4 h-4" />
-                    Full Payment
-                  </>
-                )}
-              </button>
+            {/* Payment Input Section */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <label className="block text-xs text-white/80 font-medium mb-1">
+                    Payment Amount (Rs)
+                  </label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                      <DollarSign className="w-4 h-4 text-white/70" />
+                    </div>
+                    <input
+                      type="number"
+                      value={paymentAmount}
+                      onChange={(e) => setPaymentAmount(e.target.value)}
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                      className="w-full pl-10 pr-3 py-2.5 rounded-lg bg-white/20 text-white placeholder-white/50 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={handleFullPayment}
+                  className="mt-6 px-3 py-2.5 bg-white/20 text-white text-sm font-semibold rounded-lg border border-white/30 hover:bg-white/30 transition-colors duration-200"
+                  title="Set payment to full amount"
+                >
+                  Full
+                </button>
+              </div>
 
-              {/* Regular Checkout Button */}
-              <button
-                onClick={handleCheckout}
-                disabled={isCheckoutDisabled()}
-                className={`flex-1 py-3 px-4 rounded-xl border-none font-semibold text-sm shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${
-                  isCheckoutDisabled()
-                    ? "bg-gray-300 text-gray-500 cursor-not-allowed opacity-70"
-                    : "bg-white text-purple-600 cursor-pointer hover:scale-105 hover:shadow-xl"
-                }`}
-              >
-                <Printer className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                Checkout
-              </button>
+              {/* Change Display */}
+              {changeAmount > 0 && (
+                <div className="p-2 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-lg border border-green-400/30">
+                  <div className="flex justify-between items-center">
+                    <span className="text-white text-sm font-medium">
+                      Change Due:
+                    </span>
+                    <span className="text-green-300 text-lg font-bold">
+                      Rs {changeAmount.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Payment Button Row */}
+              <div className="flex gap-2">
+                <button
+                  onClick={handlePayment}
+                  disabled={
+                    isCheckoutDisabled() ||
+                    !paymentAmount ||
+                    parseFloat(paymentAmount) <= 0 ||
+                    processingPayment
+                  }
+                  className={`flex-1 py-3 px-4 rounded-xl border-none font-semibold text-sm shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${
+                    isCheckoutDisabled() ||
+                    !paymentAmount ||
+                    parseFloat(paymentAmount) <= 0 ||
+                    processingPayment
+                      ? "bg-gray-300 text-gray-500 cursor-not-allowed opacity-70"
+                      : "bg-gradient-to-r from-green-500 to-emerald-600 text-white cursor-pointer hover:scale-105 hover:shadow-xl"
+                  }`}
+                >
+                  {processingPayment ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <DollarSign className="w-4 h-4" />
+                      Process Payment
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
