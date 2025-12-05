@@ -1,0 +1,101 @@
+import React from "react";
+import { Calendar, DollarSign, FileText, TrendingUp } from "lucide-react";
+
+export default function DailyReport({ report }) {
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat("en-PK", {
+      style: "currency",
+      currency: "PKR",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3 mb-4">
+        <Calendar className="w-6 h-6 text-purple-600" />
+        <h3 className="text-2xl font-bold text-gray-800">Daily Sales Report</h3>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Calendar className="w-5 h-5 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Date</p>
+              <p className="text-lg font-semibold text-gray-800">
+                {formatDate(report.date)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 bg-pink-100 rounded-lg">
+              <DollarSign className="w-5 h-5 text-pink-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Sales</p>
+              <p className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                {formatCurrency(report.total_sales)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <FileText className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Orders</p>
+              <p className="text-2xl font-bold text-gray-800">
+                {report.order_count}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Customer Filter Info */}
+      {report.customer_filter && (
+        <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+          <p className="text-sm text-blue-800">
+            <span className="font-semibold">Filtered by customer:</span>{" "}
+            {report.customer_filter}
+          </p>
+        </div>
+      )}
+
+      {/* Growth Indicator */}
+      <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-green-600" />
+            <span className="font-semibold text-green-800">
+              Sales Performance
+            </span>
+          </div>
+          <span className="text-green-700 font-bold">
+            {report.total_sales > 0 ? "Active Sales Day" : "No Sales Recorded"}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
