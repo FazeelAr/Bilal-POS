@@ -208,7 +208,6 @@ export default function Receipt() {
     total,
     customer,
     payment_amount,
-    balance_due,
     payment_status,
   } = payload;
 
@@ -253,7 +252,7 @@ export default function Receipt() {
               Sh.M Bilal 03314108643
             </p>
             <p className="text-xs text-center text-gray-700 mb-2">
-              Sh.M usman 03260188883
+              Sh.M usman 03260188883
             </p>
 
             <div className="divider border-t-2 border-gray-800 my-2 md:my-3"></div>
@@ -420,14 +419,6 @@ export default function Receipt() {
                 {isFullPayment && (
                   <p className="text-sm text-green-800 mt-1">
                     <span className="font-semibold">Status:</span> Fully Paid
-                  </p>
-                )}
-                {isPartialPayment && (
-                  <p className="text-sm text-yellow-800 mt-1">
-                    <span className="font-semibold">Status:</span> Partial
-                    Payment
-                    {balance_due > 0 &&
-                      ` - Balance Due: Rs ${balance_due.toFixed(2)}`}
                   </p>
                 )}
               </div>
