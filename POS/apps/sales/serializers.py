@@ -45,6 +45,7 @@ class OrderCreateSerializer(serializers.Serializer):
     def create(self, validated_data):
         from apps.pricing.models import Item
         from datetime import date
+        import uuid
         
         customer_id = validated_data['customer']
         items_data = validated_data['items']
@@ -82,9 +83,9 @@ class OrderCreateSerializer(serializers.Serializer):
                 'price': final_price,  # Store the factored price
             })
         
-        # Create order
+        # Create order (ID will be auto-generated)
         order = Order.objects.create(
-            customer=customer,
+            client=customer,
             total=order_total,
             date=date.today()
         )
