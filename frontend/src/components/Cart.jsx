@@ -82,7 +82,7 @@ export default function Cart() {
       let backendOrder = null;
 
       try {
-        const res = await apiPost("sales/orders/create-with-payment/", payload);
+        const res = await apiPost("sales/orders/create/", payload);
         backendOrder = res.data;
       } catch (err) {
         console.error("Payment checkout failed", err);

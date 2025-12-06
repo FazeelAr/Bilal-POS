@@ -22,8 +22,8 @@ export default function Pos() {
           setProducts(
             res.data.map((item) => ({
               productPriceId: item.id,
-              productId: item.product,
-              name: item.product_name,
+              productId: item.id,  // ← Use the same ID
+              name: item.name,     // ← Changed from product_name to name
               price: Number(item.price),
             }))
           );

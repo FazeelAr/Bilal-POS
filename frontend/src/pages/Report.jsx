@@ -74,7 +74,7 @@ export default function Report() {
       ...(filters.selectedCustomer && { customer: filters.selectedCustomer }),
     });
 
-    const res = await apiGet(`orders/reports/daily/?${params}`);
+    const res = await apiGet(`sales/orders/reports/daily/?${params}`);
     if (res && res.data) {
       setReportData((prev) => ({ ...prev, daily: res.data }));
       setActiveTab("daily");
@@ -88,7 +88,7 @@ export default function Report() {
       ...(filters.selectedCustomer && { customer: filters.selectedCustomer }),
     });
 
-    const res = await apiGet(`orders/reports/monthly/?${params}`);
+    const res = await apiGet(`sales/orders/reports/monthly/?${params}`);
     if (res && res.data) {
       setReportData((prev) => ({ ...prev, monthly: res.data }));
       setActiveTab("monthly");
@@ -106,7 +106,7 @@ export default function Report() {
       ...(filters.selectedCustomer && { customer: filters.selectedCustomer }),
     });
 
-    const res = await apiGet(`orders/reports/date-range/?${params}`);
+    const res = await apiGet(`sales/orders/reports/date-range/?${params}`);
     if (res && res.data) {
       setReportData((prev) => ({ ...prev, range: res.data }));
       setActiveTab("range");

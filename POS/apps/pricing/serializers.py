@@ -4,13 +4,13 @@ from .models import Item
 
 class ItemSerializer(serializers.ModelSerializer):
     """Serializer for Item (Product) model"""
-    product = serializers.CharField(source='id', read_only=True)
+    product = serializers.IntegerField(source='id', read_only=True)
     product_name = serializers.CharField(source='name', read_only=True)
     
     class Meta:
         model = Item
         fields = ['id', 'product', 'product_name', 'name', 'price']
-        read_only_fields = ['id']
+        read_only_fields = ['id', 'product', 'product_name']
 
 
 class ItemPriceUpdateSerializer(serializers.Serializer):

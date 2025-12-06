@@ -177,7 +177,7 @@ export default function Receipt() {
           }),
         };
 
-        const res = await apiPost("receipt", receiptData);
+        const res = await apiPost("sales/receipt/", receiptData);
         setServerResp(res && res.data ? res.data : null);
       } catch (err) {
         console.warn("Receipt POST failed", err);
