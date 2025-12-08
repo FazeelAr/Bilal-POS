@@ -7,6 +7,7 @@ export default function Receipt() {
   const navigate = useNavigate();
   const payload = location.state && location.state.payload;
   const [serverResp, setServerResp] = useState(null);
+  const [logoError, setLogoError] = useState(false);
 
   useEffect(() => {
     if (!payload) {
@@ -49,9 +50,14 @@ export default function Receipt() {
           line-height: 1.3 !important;
         }
        
+        .print-area .logo-space {
+          text-align: center !important;
+          margin: 0 auto 4px auto !important;
+        }
         .print-area .logo-space img {
           max-height: 50px !important;
           max-width: 100% !important;
+          height: auto !important;
         }
         .print-area .store-name { 
           font-size: 22px !important; 
@@ -59,6 +65,13 @@ export default function Receipt() {
           text-align: center !important;
           margin: 4px 0 !important;
           letter-spacing: 0.5px !important;
+          font-family: 'Arial', 'Helvetica', sans-serif !important;
+        }
+        .print-area .store-info {
+          font-size: 12px !important;
+          font-weight: 700 !important;
+          text-align: center !important;
+          margin: 2px 0 !important;
           font-family: 'Arial', 'Helvetica', sans-serif !important;
         }
         .print-area .customer-info {
@@ -162,10 +175,9 @@ export default function Receipt() {
     `;
     document.head.appendChild(style);
 
-    // Send to backend receipt endpoint (if you want to log receipt prints)
+    // Send to backend receipt endpoint
     (async () => {
       try {
-        // Prepare data for receipt endpoint according to your serializer
         const receiptData = {
           items: payload.items,
           total: payload.total,
@@ -181,7 +193,6 @@ export default function Receipt() {
         setServerResp(res && res.data ? res.data : null);
       } catch (err) {
         console.warn("Receipt POST failed", err);
-        // Don't show error to user as receipt should still work
       }
     })();
 
@@ -208,7 +219,6 @@ export default function Receipt() {
     total,
     customer,
     payment_amount,
-    balance_due,
     payment_status,
   } = payload;
 
@@ -216,6 +226,10 @@ export default function Receipt() {
   const isFullPayment = payment_status === "paid";
   const isPartialPayment = payment_status === "partial";
   const hasPaymentInfo = payment_amount !== undefined;
+
+  const handleLogoError = () => {
+    setLogoError(true);
+  };
 
   return (
     <div
@@ -239,6 +253,23 @@ export default function Receipt() {
             className="print-area bg-white border-2 border-gray-300 p-3 md:p-4 rounded-lg"
             style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
           >
+            {/* Logo */}
+            <div className="logo-space mb-3">
+              {!logoError ? (
+                <img
+                  src="/images/logo.png"
+                  alt="Bilal Poultry Traders"
+                  className="h-12 mx-auto"
+                  onError={handleLogoError}
+                />
+              ) : (
+                <div className="text-center">
+                  <div className="text-3xl mb-1">🐔</div>
+                  <div className="text-xs text-gray-500">Logo</div>
+                </div>
+              )}
+            </div>
+
             {/* Store Name */}
             <h3
               className="store-name text-lg md:text-xl font-bold text-center mb-1 md:mb-2 tracking-wide"
@@ -246,15 +277,19 @@ export default function Receipt() {
             >
               Bilal Poultry Traders
             </h3>
-            <p className="text-xs text-center text-gray-700 mb-2">
-              Prop. Sh M Ahmad 0331-3939373
-            </p>
-            <p className="text-xs text-center text-gray-700 mb-2">
-              Sh.M Bilal 03314108643
-            </p>
-            <p className="text-xs text-center text-gray-700 mb-2">
-              Sh.M usman 03260188883
-            </p>
+
+            {/* Store Contact Info */}
+            <div className="store-info space-y-0.5 mb-2">
+              <div className="text-xs text-gray-700 text-center">
+                Prop. Sh M Ahmad 0331-3939373
+              </div>
+              <div className="text-xs text-gray-700 text-center">
+                Sh.M Bilal 03314108643
+              </div>
+              <div className="text-xs text-gray-700 text-center">
+                Sh.M usman 03260188883
+              </div>
+            </div>
 
             <div className="divider border-t-2 border-gray-800 my-2 md:my-3"></div>
 
@@ -368,7 +403,7 @@ export default function Receipt() {
                 className="total-row flex justify-between items-center text-base md:text-lg font-bold"
                 style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
               >
-                <span>SUBTOTAL:</span>
+                <span>TOTAL:</span>
                 <span>Rs {Number(total || 0).toFixed(2)}</span>
               </div>
 
@@ -382,22 +417,34 @@ export default function Receipt() {
                     <span>PAID:</span>
                     <span>Rs {Number(payment_amount || 0).toFixed(2)}</span>
                   </div>
+                  {payment_status === "partial" &&
+                    payload.balance_due !== undefined && (
+                      <div
+                        className="balance-row flex justify-between items-center text-yellow-700 mt-1"
+                        style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+                      >
+                        <span>BALANCE DUE:</span>
+                        <span>
+                          Rs {Math.abs(payload.balance_due).toFixed(2)}
+                        </span>
+                      </div>
+                    )}
                 </>
-              )}
-
-              {/* Final Total (if different from subtotal) */}
-              {hasPaymentInfo && (
-                <div
-                  className="total-row flex justify-between items-center text-base md:text-lg font-bold mt-2 pt-2 border-t border-dashed border-gray-600"
-                  style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
-                >
-                  <span>GRAND TOTAL:</span>
-                  <span>Rs {Number(total || 0).toFixed(2)}</span>
-                </div>
               )}
             </div>
 
             <div className="divider border-t-2 border-gray-800 my-2 md:my-3"></div>
+
+            {/* Footer Message */}
+            <div
+              className="footer-text text-sm text-center text-gray-600 mt-3 md:mt-4"
+              style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+            >
+              Thank You For Your Business!
+            </div>
+            <div className="text-xs text-center text-gray-500 mt-1">
+              Please keep this receipt for your records
+            </div>
           </div>
 
           {/* Success Message */}
@@ -426,8 +473,8 @@ export default function Receipt() {
                   <p className="text-sm text-yellow-800 mt-1">
                     <span className="font-semibold">Status:</span> Partial
                     Payment
-                    {balance_due > 0 &&
-                      ` - Balance Due: Rs ${balance_due.toFixed(2)}`}
+                    {payload.balance_due > 0 &&
+                      ` - Balance Due: Rs ${payload.balance_due.toFixed(2)}`}
                   </p>
                 )}
               </div>

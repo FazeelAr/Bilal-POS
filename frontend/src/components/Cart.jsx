@@ -86,7 +86,9 @@ export default function Cart() {
         backendOrder = res.data;
       } catch (err) {
         console.error("Payment checkout failed", err);
-        alert("Payment failed – but showing receipt anyway.");
+        alert("Payment failed. Please try again or contact support.");
+        setProcessingPayment(false);
+        return;
       }
 
       const itemsPayload = cart.map((it) => {

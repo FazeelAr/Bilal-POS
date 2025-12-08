@@ -18,12 +18,13 @@ export default function Pos() {
     const fetchProducts = async () => {
       try {
         const res = await apiGet("pricing/products/");
+
         if (res && res.data && Array.isArray(res.data) && res.data.length > 0) {
           setProducts(
             res.data.map((item) => ({
               productPriceId: item.id,
-              productId: item.id,  // ← Use the same ID
-              name: item.name,     // ← Changed from product_name to name
+              productId: item.product,
+              name: item.name,
               price: Number(item.price),
             }))
           );
