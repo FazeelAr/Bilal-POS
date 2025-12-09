@@ -287,7 +287,7 @@ export default function Receipt() {
                 Sh.M Bilal 03314108643
               </div>
               <div className="text-xs text-gray-700 text-center">
-                Sh.M usman 03260188883
+                Sh.M Usman 03260188883
               </div>
             </div>
 
@@ -307,11 +307,6 @@ export default function Receipt() {
                   {serverResp?.id || payload.saleId || "N/A"}
                 </div>
 
-                {isPartialPayment && (
-                  <div className="text-xs text-center text-yellow-600 font-bold mb-1">
-                    ⚠ PARTIAL PAYMENT
-                  </div>
-                )}
                 <div className="divider border-t-2 border-gray-800 my-2 md:my-3"></div>
               </>
             )}
