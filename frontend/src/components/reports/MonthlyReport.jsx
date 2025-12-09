@@ -1,7 +1,16 @@
-import React from "react";
-import { TrendingUp, TrendingDown, DollarSign, Calendar } from "lucide-react";
+import React, { useState } from "react";
+import { TrendingUp, TrendingDown, DollarSign, Calendar, ChevronDown, ChevronUp } from "lucide-react";
+import OrderDetailReport from "./OrderDetailReport";
 
 export default function MonthlyReport({ reports }) {
+  const [expandedMonth, setExpandedMonth] = useState(null);
+  
+  // Check if reports is an object with reports array (from backend)
+  const isNewFormat = reports && reports.reports;
+  const reportsArray = isNewFormat ? reports.reports : reports;
+  const customerFilter = isNewFormat ? reports.customer_filter : null;
+  const customerBalance = isNewFormat ? reports.customer_balance : null;
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-PK", {
       style: "currency",
@@ -21,21 +30,25 @@ export default function MonthlyReport({ reports }) {
   };
 
   // Calculate total
-  const totalSales = reports.reduce(
+  const totalSales = reportsArray.reduce(
     (sum, report) => sum + (report.total_sales || 0),
     0
   );
 
   // Calculate growth percentage
   const calculateGrowth = () => {
-    if (reports.length < 2) return 0;
-    const current = reports[0]?.total_sales || 0;
-    const previous = reports[1]?.total_sales || 0;
+    if (reportsArray.length < 2) return 0;
+    const current = reportsArray[0]?.total_sales || 0;
+    const previous = reportsArray[1]?.total_sales || 0;
     if (previous === 0) return current > 0 ? 100 : 0;
     return ((current - previous) / previous) * 100;
   };
 
   const growth = calculateGrowth();
+
+  const toggleMonthExpansion = (monthIndex) => {
+    setExpandedMonth(expandedMonth === monthIndex ? null : monthIndex);
+  };
 
   return (
     <div className="space-y-6">
@@ -46,11 +59,33 @@ export default function MonthlyReport({ reports }) {
         </h3>
       </div>
 
+      {/* Customer Balance Summary */}
+      {customerFilter && customerBalance !== undefined && customerBalance !== null && (
+        <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-5 border border-blue-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <span className="text-lg font-bold">₹</span>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-600">Customer Balance</p>
+                <p className={`text-2xl font-bold ${customerBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  {formatCurrency(customerBalance)}
+                </p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Filtered by: <span className="font-semibold">{customerFilter}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
           <p className="text-sm font-medium text-gray-600 mb-2">Total Months</p>
-          <p className="text-2xl font-bold text-gray-800">{reports.length}</p>
+          <p className="text-2xl font-bold text-gray-800">{reportsArray.length}</p>
         </div>
 
         <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
@@ -91,51 +126,76 @@ export default function MonthlyReport({ reports }) {
                 Total Sales
               </th>
               <th className="py-4 px-6 text-center text-sm font-bold text-gray-700 uppercase tracking-wider">
-                Trend
+                Orders
+              </th>
+              <th className="py-4 px-6 text-center text-sm font-bold text-gray-700 uppercase tracking-wider">
+                Actions
               </th>
             </tr>
           </thead>
           <tbody>
-            {reports.map((report, index) => (
-              <tr
-                key={index}
-                className="border-b border-gray-100 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 transition-colors"
-              >
-                <td className="py-4 px-6">
-                  <div className="flex items-center gap-3">
-                    <Calendar className="w-4 h-4 text-purple-500" />
-                    <span className="font-medium text-gray-800">
-                      {formatMonth(report.month)}
-                    </span>
-                  </div>
-                </td>
-                <td className="py-4 px-6 text-right">
-                  <span className="font-bold text-gray-900">
-                    {formatCurrency(report.total_sales)}
-                  </span>
-                </td>
-                <td className="py-4 px-6 text-center">
-                  {index > 0 && (
-                    <div className="inline-flex items-center">
-                      {report.total_sales > reports[index - 1]?.total_sales ? (
-                        <>
-                          <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
-                          <span className="text-green-600 text-sm font-medium">
-                            ↑
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <TrendingDown className="w-4 h-4 text-red-500 mr-1" />
-                          <span className="text-red-600 text-sm font-medium">
-                            ↓
-                          </span>
-                        </>
-                      )}
+            {reportsArray.map((report, index) => (
+              <React.Fragment key={index}>
+                <tr
+                  className="border-b border-gray-100 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 transition-colors"
+                >
+                  <td className="py-4 px-6">
+                    <div className="flex items-center gap-3">
+                      <Calendar className="w-4 h-4 text-purple-500" />
+                      <span className="font-medium text-gray-800">
+                        {formatMonth(report.month)}
+                      </span>
                     </div>
-                  )}
-                </td>
-              </tr>
+                  </td>
+                  <td className="py-4 px-6 text-right">
+                    <span className="font-bold text-gray-900">
+                      {formatCurrency(report.total_sales)}
+                    </span>
+                  </td>
+                  <td className="py-4 px-6 text-center">
+                    <span className="font-semibold text-gray-700">
+                      {report.order_count || 0}
+                    </span>
+                  </td>
+                  <td className="py-4 px-6 text-center">
+                    {report.orders && report.orders.length > 0 && (
+                      <button
+                        onClick={() => toggleMonthExpansion(index)}
+                        className="p-1 hover:bg-purple-100 rounded text-sm text-purple-600"
+                      >
+                        {expandedMonth === index ? (
+                          <>
+                            <ChevronUp className="w-4 h-4 inline mr-1" />
+                            Hide Orders
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="w-4 h-4 inline mr-1" />
+                            Show Orders
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+                {/* Expanded Row with Order Details */}
+                {expandedMonth === index && report.orders && report.orders.length > 0 && (
+                  <tr>
+                    <td colSpan="4" className="p-0">
+                      <div className="p-6 bg-gray-50 border-b border-gray-200">
+                        <OrderDetailReport 
+                          orders={report.orders} 
+                          reportType="monthly"
+                          date={report.month}
+                          customerName={customerFilter}
+                          customerBalance={customerBalance}
+                          showBalance={false}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
             ))}
           </tbody>
           <tfoot>
@@ -148,21 +208,26 @@ export default function MonthlyReport({ reports }) {
                   {formatCurrency(totalSales)}
                 </span>
               </td>
+              <td className="py-5 px-6 text-center">
+                <span className="text-lg font-bold text-gray-900">
+                  {reportsArray.reduce((sum, report) => sum + (report.order_count || 0), 0)}
+                </span>
+              </td>
               <td></td>
             </tr>
           </tfoot>
         </table>
       </div>
 
-      {/* Chart Visualization (Simple bar representation) */}
+      {/* Chart Visualization */}
       <div className="mt-8">
         <h4 className="text-lg font-semibold text-gray-800 mb-4">
           Sales Trend
         </h4>
         <div className="h-48 flex items-end gap-2">
-          {reports.slice(0, 6).map((report, index) => {
-            const maxValue = Math.max(...reports.map((r) => r.total_sales));
-            const height = (report.total_sales / maxValue) * 100;
+          {reportsArray.slice(0, 6).map((report, index) => {
+            const maxValue = Math.max(...reportsArray.map((r) => r.total_sales));
+            const height = maxValue > 0 ? (report.total_sales / maxValue) * 100 : 0;
 
             return (
               <div key={index} className="flex-1 flex flex-col items-center">

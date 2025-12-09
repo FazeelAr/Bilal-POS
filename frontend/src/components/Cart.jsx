@@ -6,7 +6,6 @@ import {
   AlertCircle,
   Printer,
   CheckCircle,
-  DollarSign,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { apiPost } from "../api/api";
@@ -20,7 +19,6 @@ export default function Cart() {
     itemTotal,
     grandTotal,
     isCheckoutDisabled,
-    handleCheckout,
     currentCustomer,
     clearCart,
     clearCustomer,
@@ -364,7 +362,7 @@ export default function Cart() {
                   </label>
                   <div className="relative">
                     <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                      <DollarSign className="w-4 h-4 text-white/70" />
+                      <p>Rs</p>
                     </div>
                     <input
                       type="number"
@@ -426,7 +424,7 @@ export default function Cart() {
                     </>
                   ) : (
                     <>
-                      <DollarSign className="w-4 h-4" />
+                      <p>Rs</p>
                       Process Payment
                     </>
                   )}

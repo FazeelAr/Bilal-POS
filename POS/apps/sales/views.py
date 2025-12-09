@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Sum
+from django.db.models import Sum, Count
 from django.db.models.functions import TruncDate, TruncMonth
 from datetime import datetime, date
 from .models import Client, Order, OrderItem
@@ -61,21 +61,55 @@ class OrderViewSet(viewsets.ModelViewSet):
             report_date = date.today()
         
         # Filter orders
-        orders = Order.objects.filter(date=report_date)
+        orders = Order.objects.filter(date=report_date).select_related('client').prefetch_related('items__item')
         
         # Filter by customer if provided
         customer_id = request.query_params.get('customer')
+        customer_filter = None
+        customer_balance = None
+        
         if customer_id:
             orders = orders.filter(client_id=customer_id)
+            try:
+                customer = Client.objects.get(id=customer_id)
+                customer_filter = customer.name
+                customer_balance = float(customer.balance)
+            except Client.DoesNotExist:
+                customer_filter = f"Customer ID: {customer_id}"
         
         # Calculate total
         total_sales = orders.aggregate(total=Sum('total'))['total'] or 0
         
+        # Get order details
+        order_details = []
+        for order in orders:
+            order_data = {
+                'id': order.id,
+                'customer_name': order.client.name,
+                'order_date': order.date.strftime('%Y-%m-%d'),
+                'amount': float(order.total),
+                'items_count': order.items.count(),
+                'items': []
+            }
+            
+            # Add order items
+            for item in order.items.all():
+                order_data['items'].append({
+                    'name': item.item.name,
+                    'quantity': float(item.quantity),
+                    'price': float(item.price),
+                    'total': float(item.quantity * item.price)
+                })
+            
+            order_details.append(order_data)
+        
         return Response({
-            'date': report_date,
-            'total_sales': total_sales,
+            'date': report_date.strftime('%Y-%m-%d'),
+            'total_sales': float(total_sales),
             'order_count': orders.count(),
-            'customer_filter': customer_id if customer_id else None
+            'customer_filter': customer_filter,
+            'customer_balance': customer_balance,
+            'orders': order_details
         })
     
     @action(detail=False, methods=['get'], url_path='reports/monthly')
@@ -87,56 +121,120 @@ class OrderViewSet(viewsets.ModelViewSet):
         - end_date: YYYY-MM-DD (optional)
         - customer: customer ID (optional)
         """
-        orders = Order.objects.all()
-        
-        # Filter by customer if provided
-        customer_id = request.query_params.get('customer')
-        if customer_id:
-            orders = orders.filter(client_id=customer_id)
-        
-        # Filter by date range if provided
-        start_date = request.query_params.get('start_date')
-        end_date = request.query_params.get('end_date')
-        
-        if start_date:
-            try:
-                start = datetime.strptime(start_date, '%Y-%m-%d').date()
-                orders = orders.filter(date__gte=start)
-            except ValueError:
-                return Response(
-                    {'error': 'Invalid start_date format. Use YYYY-MM-DD'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-        
-        if end_date:
-            try:
-                end = datetime.strptime(end_date, '%Y-%m-%d').date()
-                orders = orders.filter(date__lte=end)
-            except ValueError:
-                return Response(
-                    {'error': 'Invalid end_date format. Use YYYY-MM-DD'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-        
-        # Group by month and calculate totals
-        monthly_data = (
-            orders
-            .annotate(month=TruncMonth('date'))
-            .values('month')
-            .annotate(total_sales=Sum('total'))
-            .order_by('-month')
-        )
-        
-        # Format response
-        result = [
-            {
-                'month': item['month'].strftime('%Y-%m'),
-                'total_sales': item['total_sales']
+        try:
+            orders = Order.objects.all()
+            
+            # Filter by customer if provided
+            customer_id = request.query_params.get('customer')
+            customer_filter = None
+            customer_balance = None
+            
+            if customer_id:
+                orders = orders.filter(client_id=customer_id)
+                try:
+                    customer = Client.objects.get(id=customer_id)
+                    customer_filter = customer.name
+                    customer_balance = float(customer.balance)
+                except Client.DoesNotExist:
+                    customer_filter = f"Customer ID: {customer_id}"
+            
+            # Filter by date range if provided
+            start_date = request.query_params.get('start_date')
+            end_date = request.query_params.get('end_date')
+            
+            if start_date:
+                try:
+                    start = datetime.strptime(start_date, '%Y-%m-%d').date()
+                    orders = orders.filter(date__gte=start)
+                except ValueError:
+                    return Response(
+                        {'error': 'Invalid start_date format. Use YYYY-MM-DD'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            if end_date:
+                try:
+                    end = datetime.strptime(end_date, '%Y-%m-%d').date()
+                    orders = orders.filter(date__lte=end)
+                except ValueError:
+                    return Response(
+                        {'error': 'Invalid end_date format. Use YYYY-MM-DD'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            # Group by month manually
+            monthly_totals = {}
+            monthly_orders = {}
+            
+            # Aggregate orders by month
+            for order in orders.select_related('client').iterator():
+                try:
+                    month_key = order.date.strftime('%Y-%m')
+                    
+                    if month_key not in monthly_totals:
+                        monthly_totals[month_key] = 0
+                        monthly_orders[month_key] = []
+                    
+                    monthly_totals[month_key] += float(order.total)
+                    
+                    # Get order details
+                    order_data = {
+                        'id': order.id,
+                        'customer_name': order.client.name if order.client else 'Unknown',
+                        'order_date': order.date.strftime('%Y-%m-%d'),
+                        'amount': float(order.total),
+                        'items_count': order.items.count(),
+                        'items': []
+                    }
+                    
+                    # Get items safely
+                    try:
+                        for order_item in order.items.all().select_related('item'):
+                            order_data['items'].append({
+                                'name': order_item.item.name if order_item.item else 'Unknown',
+                                'quantity': float(order_item.quantity),
+                                'price': float(order_item.price),
+                                'total': float(order_item.quantity * order_item.price)
+                            })
+                    except Exception as e:
+                        print(f"Error getting items for order {order.id}: {e}")
+                    
+                    monthly_orders[month_key].append(order_data)
+                    
+                except Exception as e:
+                    print(f"Error processing order {order.id}: {e}")
+                    continue
+            
+            # Convert to list format
+            result = []
+            for month_key, total_sales in monthly_totals.items():
+                month_orders_list = monthly_orders.get(month_key, [])
+                result.append({
+                    'month': month_key,
+                    'total_sales': total_sales,
+                    'order_count': len(month_orders_list),
+                    'orders': month_orders_list
+                })
+            
+            # Sort by month (descending)
+            result.sort(key=lambda x: x['month'], reverse=True)
+            
+            response_data = {
+                'reports': result,
+                'customer_filter': customer_filter,
+                'customer_balance': customer_balance
             }
-            for item in monthly_data
-        ]
-        
-        return Response(result)
+            
+            return Response(response_data)
+            
+        except Exception as e:
+            print(f"Error in monthly_report: {e}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'error': f'Internal server error: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
     @action(detail=False, methods=['get'], url_path='reports/date-range')
     def date_range_report(self, request):
@@ -165,42 +263,145 @@ class OrderViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Filter orders
-        orders = Order.objects.filter(date__gte=start, date__lte=end)
-        
-        # Filter by customer if provided
-        customer_id = request.query_params.get('customer')
-        if customer_id:
-            orders = orders.filter(client_id=customer_id)
-        
-        # Group by date and calculate totals
-        daily_data = (
-            orders
-            .annotate(report_date=TruncDate('date'))
-            .values('report_date')
-            .annotate(total_sales=Sum('total'))
-            .order_by('report_date')
-        )
-        
-        # Calculate overall total
-        total_sales = orders.aggregate(total=Sum('total'))['total'] or 0
-        
-        result = {
-            'start_date': start,
-            'end_date': end,
-            'total_sales': total_sales,
-            'order_count': orders.count(),
-            'daily_breakdown': [
-                {
-                    'date': item['report_date'],
-                    'total_sales': item['total_sales']
-                }
-                for item in daily_data
-            ],
-            'customer_filter': customer_id if customer_id else None
-        }
-        
-        return Response(result)
+        try:
+            # Filter orders - use simple filter first
+            orders = Order.objects.filter(date__gte=start, date__lte=end)
+            
+            # Filter by customer if provided
+            customer_id = request.query_params.get('customer')
+            customer_filter = None
+            customer_balance = None
+            
+            if customer_id:
+                orders = orders.filter(client_id=customer_id)
+                try:
+                    customer = Client.objects.get(id=customer_id)
+                    customer_filter = customer.name
+                    customer_balance = float(customer.balance)
+                except Client.DoesNotExist:
+                    customer_filter = f"Customer ID: {customer_id}"
+            
+            # Calculate overall total
+            total_sales_result = orders.aggregate(total=Sum('total'))
+            total_sales = total_sales_result['total'] or 0
+            
+            # Get order count
+            order_count = orders.count()
+            
+            # Get all order details for the range
+            all_order_details = []
+            # Use iterator() to avoid memory issues with large datasets
+            for order in orders.select_related('client').iterator():
+                try:
+                    # Get order items
+                    items = []
+                    items_count = 0
+                    # Try to get items, but don't crash if there's an issue
+                    try:
+                        order_items = order.items.all()
+                        items_count = order_items.count()
+                        for order_item in order_items.select_related('item'):
+                            items.append({
+                                'name': order_item.item.name if order_item.item else 'Unknown',
+                                'quantity': float(order_item.quantity),
+                                'price': float(order_item.price),
+                                'total': float(order_item.quantity * order_item.price)
+                            })
+                    except Exception as e:
+                        print(f"Error getting items for order {order.id}: {e}")
+                    
+                    order_data = {
+                        'id': order.id,
+                        'customer_name': order.client.name if order.client else 'Unknown',
+                        'order_date': order.date.strftime('%Y-%m-%d'),
+                        'amount': float(order.total),
+                        'items_count': items_count,
+                        'items': items
+                    }
+                    
+                    all_order_details.append(order_data)
+                except Exception as e:
+                    print(f"Error processing order {order.id}: {e}")
+                    continue
+            
+            # Create daily breakdown manually instead of using TruncDate
+            daily_breakdown = []
+            
+            # Create a dictionary to aggregate daily sales
+            daily_sales = {}
+            daily_orders = {}
+            
+            # Aggregate orders by date
+            for order in orders:
+                date_str = order.date.strftime('%Y-%m-%d')
+                if date_str not in daily_sales:
+                    daily_sales[date_str] = 0
+                    daily_orders[date_str] = []
+                
+                daily_sales[date_str] += float(order.total)
+                
+                # Get order details for this day
+                day_order_details = []
+                try:
+                    order_data = {
+                        'id': order.id,
+                        'customer_name': order.client.name if order.client else 'Unknown',
+                        'order_date': order.date.strftime('%Y-%m-%d'),
+                        'amount': float(order.total),
+                        'items_count': order.items.count(),
+                        'items': []
+                    }
+                    
+                    for order_item in order.items.all():
+                        order_data['items'].append({
+                            'name': order_item.item.name if order_item.item else 'Unknown',
+                            'quantity': float(order_item.quantity),
+                            'price': float(order_item.price),
+                            'total': float(order_item.quantity * order_item.price)
+                        })
+                    
+                    day_order_details.append(order_data)
+                except Exception as e:
+                    print(f"Error creating day order details: {e}")
+                
+                daily_orders[date_str].extend(day_order_details)
+            
+            # Convert to list format
+            for date_str, sales in daily_sales.items():
+                # Count orders for this day
+                day_order_count = len(daily_orders[date_str]) if date_str in daily_orders else 0
+                
+                daily_breakdown.append({
+                    'date': date_str,
+                    'total_sales': sales,
+                    'order_count': day_order_count,
+                    'orders': daily_orders.get(date_str, [])
+                })
+            
+            # Sort by date
+            daily_breakdown.sort(key=lambda x: x['date'])
+            
+            result = {
+                'start_date': start.strftime('%Y-%m-%d'),
+                'end_date': end.strftime('%Y-%m-%d'),
+                'total_sales': float(total_sales),
+                'order_count': order_count,
+                'orders': all_order_details,
+                'daily_breakdown': daily_breakdown,
+                'customer_filter': customer_filter,
+                'customer_balance': customer_balance
+            }
+            
+            return Response(result)
+            
+        except Exception as e:
+            print(f"Error in date_range_report: {e}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'error': f'Internal server error: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 @api_view(['POST'])

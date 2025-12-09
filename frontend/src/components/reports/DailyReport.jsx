@@ -1,5 +1,6 @@
 import React from "react";
 import { Calendar, DollarSign, FileText, TrendingUp } from "lucide-react";
+import OrderDetailReport from "./OrderDetailReport";
 
 export default function DailyReport({ report }) {
   const formatCurrency = (amount) => {
@@ -96,6 +97,23 @@ export default function DailyReport({ report }) {
           </span>
         </div>
       </div>
+
+      {/* Order Details Section */}
+      {report.orders && report.orders.length > 0 ? (
+        <div className="mt-8">
+          <OrderDetailReport 
+            orders={report.orders} 
+            reportType="daily"
+            date={report.date}
+            customerName={report.customer_filter}
+            customerBalance={report.customer_balance}
+          />
+        </div>
+      ) : (
+        <div className="bg-gray-50 rounded-xl p-8 text-center border border-gray-200">
+          <p className="text-gray-600">No orders found for this date.</p>
+        </div>
+      )}
     </div>
   );
 }

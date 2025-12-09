@@ -45,7 +45,6 @@ class OrderCreateSerializer(serializers.Serializer):
     def create(self, validated_data):
         from apps.pricing.models import Item
         from datetime import date
-        import uuid
         
         customer_id = validated_data['customer']
         items_data = validated_data['items']

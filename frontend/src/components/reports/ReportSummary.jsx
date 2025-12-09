@@ -5,6 +5,7 @@ import {
   DollarSign,
   BarChart3,
   Layers,
+  CreditCard,
 } from "lucide-react";
 
 export default function ReportSummary({
@@ -31,10 +32,10 @@ export default function ReportSummary({
   };
 
   // Calculate totals
-  const monthlyTotal = monthlyReport.reduce(
-    (sum, report) => sum + (report.total_sales || 0),
-    0
-  );
+  const monthlyTotal = monthlyReport && monthlyReport.reports 
+    ? monthlyReport.reports.reduce((sum, report) => sum + (report.total_sales || 0), 0)
+    : monthlyReport.reduce((sum, report) => sum + (report.total_sales || 0), 0);
+  
   const rangeTotal = rangeReport ? rangeReport.total_sales : 0;
 
   return (
@@ -68,11 +69,19 @@ export default function ReportSummary({
               <p className="text-sm text-gray-500 mt-1">
                 {dailyReport.order_count} orders
               </p>
+              {dailyReport.customer_balance !== undefined && dailyReport.customer_balance !== null && (
+                <div className="flex items-center gap-1 mt-2">
+                  <CreditCard className="w-4 h-4 text-blue-500" />
+                  <span className={`text-xs font-medium ${dailyReport.customer_balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    Balance: {formatCurrency(dailyReport.customer_balance)}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {monthlyReport.length > 0 && (
+        {monthlyReport && monthlyReport.length > 0 && (
           <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-5 border border-blue-100">
             <div className="flex items-center gap-3 mb-3">
               <div className="p-2 bg-blue-100 rounded-lg">
@@ -83,7 +92,7 @@ export default function ReportSummary({
                   Monthly Report
                 </p>
                 <p className="text-base font-semibold text-gray-800">
-                  {monthlyReport.length} months
+                  {(monthlyReport.reports || monthlyReport).length} months
                 </p>
               </div>
             </div>
@@ -94,6 +103,14 @@ export default function ReportSummary({
               <p className="text-sm text-gray-500 mt-1">
                 Total across all months
               </p>
+              {monthlyReport.customer_balance !== undefined && monthlyReport.customer_balance !== null && (
+                <div className="flex items-center gap-1 mt-2">
+                  <CreditCard className="w-4 h-4 text-blue-500" />
+                  <span className={`text-xs font-medium ${monthlyReport.customer_balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    Balance: {formatCurrency(monthlyReport.customer_balance)}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -107,7 +124,7 @@ export default function ReportSummary({
               <div>
                 <p className="text-sm font-medium text-gray-600">Date Range</p>
                 <p className="text-base font-semibold text-gray-800">
-                  {rangeReport.daily_breakdown.length} days
+                  {rangeReport.daily_breakdown?.length || 0} days
                 </p>
               </div>
             </div>
@@ -118,6 +135,14 @@ export default function ReportSummary({
               <p className="text-sm text-gray-500 mt-1">
                 {rangeReport.order_count} orders
               </p>
+              {rangeReport.customer_balance !== undefined && rangeReport.customer_balance !== null && (
+                <div className="flex items-center gap-1 mt-2">
+                  <CreditCard className="w-4 h-4 text-blue-500" />
+                  <span className={`text-xs font-medium ${rangeReport.customer_balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    Balance: {formatCurrency(rangeReport.customer_balance)}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -132,40 +157,58 @@ export default function ReportSummary({
           {dailyReport && (
             <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg">
               <Calendar className="w-4 h-4 text-purple-600" />
-              <p className="text-sm text-gray-700">
-                <span className="font-semibold">Today's Sales:</span>{" "}
-                {formatCurrency(dailyReport.total_sales)} from{" "}
-                {dailyReport.order_count} orders
-              </p>
+              <div className="flex-1">
+                <p className="text-sm text-gray-700">
+                  <span className="font-semibold">Today's Sales:</span>{" "}
+                  {formatCurrency(dailyReport.total_sales)} from{" "}
+                  {dailyReport.order_count} orders
+                </p>
+                {dailyReport.orders && dailyReport.orders.length > 0 && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Includes {dailyReport.orders.length} detailed orders
+                  </p>
+                )}
+              </div>
             </div>
           )}
 
-          {monthlyReport.length > 0 && (
+          {monthlyReport && (monthlyReport.reports || monthlyReport).length > 0 && (
             <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
               <TrendingUp className="w-4 h-4 text-blue-600" />
-              <p className="text-sm text-gray-700">
-                <span className="font-semibold">Monthly Analysis:</span>{" "}
-                {monthlyReport.length} months tracked with total sales of{" "}
-                {formatCurrency(monthlyTotal)}
-              </p>
+              <div className="flex-1">
+                <p className="text-sm text-gray-700">
+                  <span className="font-semibold">Monthly Analysis:</span>{" "}
+                  {(monthlyReport.reports || monthlyReport).length} months tracked with total sales of{" "}
+                  {formatCurrency(monthlyTotal)}
+                </p>
+                {monthlyReport.reports && monthlyReport.reports.some(r => r.orders) && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Click on months to view detailed orders
+                  </p>
+                )}
+              </div>
             </div>
           )}
 
           {rangeReport && (
             <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
               <Layers className="w-4 h-4 text-green-600" />
-              <p className="text-sm text-gray-700">
-                <span className="font-semibold">Date Range:</span>{" "}
-                {rangeReport.daily_breakdown.length} days analyzed with average
-                daily sales of{" "}
-                {formatCurrency(
-                  rangeReport.total_sales / rangeReport.daily_breakdown.length
+              <div className="flex-1">
+                <p className="text-sm text-gray-700">
+                  <span className="font-semibold">Date Range:</span>{" "}
+                  {rangeReport.daily_breakdown?.length || 0} days analyzed with{" "}
+                  {rangeReport.order_count} orders
+                </p>
+                {rangeReport.orders && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Includes {rangeReport.orders.length} detailed orders
+                  </p>
                 )}
-              </p>
+              </div>
             </div>
           )}
 
-          <div className="mt-4 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-100">
+          <div className="mt-4 p-4 bg-linear-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-100">
             <p className="text-sm text-gray-700">
               <span className="font-semibold">Tip:</span> Click on the tabs
               above to view detailed reports or generate new ones using the

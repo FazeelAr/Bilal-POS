@@ -1,13 +1,18 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Calendar,
   DollarSign,
   FileText,
   TrendingUp,
   Layers,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
+import OrderDetailReport from "./OrderDetailReport";
 
 export default function DateRangeReport({ report }) {
+  const [expandedDay, setExpandedDay] = useState(null);
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-PK", {
       style: "currency",
@@ -33,12 +38,38 @@ export default function DateRangeReport({ report }) {
 
   const averageDaily = calculateAverage();
 
+  const toggleDayExpansion = (dayIndex) => {
+    setExpandedDay(expandedDay === dayIndex ? null : dayIndex);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3 mb-4">
         <Layers className="w-6 h-6 text-purple-600" />
         <h3 className="text-2xl font-bold text-gray-800">Date Range Report</h3>
       </div>
+
+      {/* Customer Balance Summary */}
+      {report.customer_filter && report.customer_balance !== undefined && report.customer_balance !== null && (
+        <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-5 border border-blue-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <span className="text-lg font-bold">₹</span>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-600">Customer Balance</p>
+                <p className={`text-2xl font-bold ${report.customer_balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  {formatCurrency(report.customer_balance)}
+                </p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Filtered by: <span className="font-semibold">{report.customer_filter}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Date Range Summary */}
       <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100 mb-6">
@@ -154,52 +185,94 @@ export default function DateRangeReport({ report }) {
                   Sales
                 </th>
                 <th className="py-3 px-4 text-center text-sm font-bold text-gray-700">
-                  Status
+                  Orders
+                </th>
+                <th className="py-3 px-4 text-center text-sm font-bold text-gray-700">
+                  Actions
                 </th>
               </tr>
             </thead>
             <tbody>
               {report.daily_breakdown.map((day, index) => (
-                <tr
-                  key={index}
-                  className="border-b border-gray-100 hover:bg-purple-50 transition-colors"
-                >
-                  <td className="py-3 px-4">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-gray-400" />
-                      <span className="font-medium text-gray-700">
-                        {formatDate(day.date)}
+                <React.Fragment key={index}>
+                  <tr
+                    className="border-b border-gray-100 hover:bg-purple-50 transition-colors"
+                  >
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-gray-400" />
+                        <span className="font-medium text-gray-700">
+                          {formatDate(day.date)}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <span className="font-semibold text-gray-900">
+                        {formatCurrency(day.total_sales)}
                       </span>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-right">
-                    <span className="font-semibold text-gray-900">
-                      {formatCurrency(day.total_sales)}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-center">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        day.total_sales > averageDaily
-                          ? "bg-green-100 text-green-800"
-                          : day.total_sales > 0
-                          ? "bg-yellow-100 text-yellow-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {day.total_sales > averageDaily
-                        ? "Above Average"
-                        : day.total_sales > 0
-                        ? "Normal"
-                        : "No Sales"}
-                    </span>
-                  </td>
-                </tr>
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      <span className="font-semibold">
+                        {day.order_count || 0}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      {day.orders && day.orders.length > 0 && (
+                        <button
+                          onClick={() => toggleDayExpansion(index)}
+                          className="p-1 hover:bg-purple-100 rounded text-sm text-purple-600"
+                        >
+                          {expandedDay === index ? (
+                            <>
+                              <ChevronUp className="w-4 h-4 inline mr-1" />
+                              Hide Orders
+                            </>
+                          ) : (
+                            <>
+                              <ChevronDown className="w-4 h-4 inline mr-1" />
+                              Show Orders
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                  {/* Expanded Row with Order Details */}
+                  {expandedDay === index && day.orders && day.orders.length > 0 && (
+                    <tr>
+                      <td colSpan="4" className="p-0">
+                        <div className="p-6 bg-gray-50 border-b border-gray-200">
+                          <OrderDetailReport 
+                            orders={day.orders} 
+                            reportType="range"
+                            date={day.date}
+                            customerName={report.customer_filter}
+                            customerBalance={report.customer_balance}
+                            showBalance={false}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* All Orders Summary */}
+      {report.orders && report.orders.length > 0 && (
+        <div className="mt-8">
+          <OrderDetailReport 
+            orders={report.orders} 
+            reportType="range"
+            date={`${report.start_date} to ${report.end_date}`}
+            customerName={report.customer_filter}
+            customerBalance={report.customer_balance}
+          />
+        </div>
+      )}
 
       {/* Summary */}
       {report.daily_breakdown.length > 0 && (
