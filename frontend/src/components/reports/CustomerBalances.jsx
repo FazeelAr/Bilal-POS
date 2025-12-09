@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { apiGet } from "../../api/api";
 import {
   Users,
-  DollarSign,
   TrendingUp,
   TrendingDown,
   CreditCard,
@@ -32,13 +31,13 @@ export default function CustomerBalances() {
   const fetchCustomerBalances = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const params = new URLSearchParams({
         sort: sortBy,
         order: sortOrder,
       });
-      
+
       const res = await apiGet(`customers/balances/?${params}`);
       if (res && res.data) {
         setBalances(res.data);
@@ -95,14 +94,19 @@ export default function CustomerBalances() {
   });
 
   // Calculate filtered totals
-  const filteredTotal = filteredCustomers.reduce((sum, customer) => sum + customer.balance, 0);
+  const filteredTotal = filteredCustomers.reduce(
+    (sum, customer) => sum + customer.balance,
+    0
+  );
   const filteredCount = filteredCustomers.length;
 
   if (loading) {
     return (
       <div className="bg-white rounded-2xl p-12 shadow-lg text-center border border-purple-100">
         <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-purple-200 border-t-purple-600 mb-4"></div>
-        <p className="text-gray-600 font-medium">Loading customer balances...</p>
+        <p className="text-gray-600 font-medium">
+          Loading customer balances...
+        </p>
       </div>
     );
   }
@@ -115,7 +119,9 @@ export default function CustomerBalances() {
             <Users className="w-5 h-5 text-red-600" />
           </div>
           <div>
-            <h4 className="font-semibold text-red-900 mb-1">Error Loading Balances</h4>
+            <h4 className="font-semibold text-red-900 mb-1">
+              Error Loading Balances
+            </h4>
             <p className="text-red-700 text-sm">{error}</p>
           </div>
         </div>
@@ -128,11 +134,11 @@ export default function CustomerBalances() {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <Users className="w-6 h-6 text-purple-600" />
-          <h3 className="text-2xl font-bold text-gray-800">Customer Balances</h3>
+          <h3 className="text-2xl font-bold text-gray-800">
+            Customer Balances
+          </h3>
         </div>
-        <div className="text-sm text-gray-600">
-          {balances.count} customers
-        </div>
+        <div className="text-sm text-gray-600">{balances.count} customers</div>
       </div>
 
       {/* Summary Cards */}
@@ -140,11 +146,15 @@ export default function CustomerBalances() {
         <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2 bg-purple-100 rounded-lg">
-              <DollarSign className="w-5 h-5 text-purple-600" />
+              <span>Rs</span>
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600">Total Balance</p>
-              <p className={`text-2xl font-bold ${balances.total_balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+              <p
+                className={`text-2xl font-bold ${
+                  balances.total_balance > 0 ? "text-red-600" : "text-green-600"
+                }`}
+              >
                 {formatCurrency(balances.total_balance)}
               </p>
             </div>
@@ -157,11 +167,15 @@ export default function CustomerBalances() {
               <TrendingUp className="w-5 h-5 text-red-600" />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-600">Debt (Positive)</p>
+              <p className="text-sm font-medium text-gray-600">
+                Debt (Positive)
+              </p>
               <p className="text-2xl font-bold text-red-600">
                 {balances.positive_balance_count}
               </p>
-              <p className="text-xs text-gray-500 mt-1">Customers with balance &gt; 0</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Customers with balance &gt; 0
+              </p>
             </div>
           </div>
         </div>
@@ -172,11 +186,15 @@ export default function CustomerBalances() {
               <TrendingDown className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-600">Credit (Negative)</p>
+              <p className="text-sm font-medium text-gray-600">
+                Credit (Negative)
+              </p>
               <p className="text-2xl font-bold text-green-600">
                 {balances.negative_balance_count}
               </p>
-              <p className="text-xs text-gray-500 mt-1">Customers with balance &lt; 0</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Customers with balance &lt; 0
+              </p>
             </div>
           </div>
         </div>
@@ -191,7 +209,9 @@ export default function CustomerBalances() {
               <p className="text-2xl font-bold text-gray-600">
                 {balances.zero_balance_count}
               </p>
-              <p className="text-xs text-gray-500 mt-1">Customers with balance = 0</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Customers with balance = 0
+              </p>
             </div>
           </div>
         </div>
@@ -202,7 +222,9 @@ export default function CustomerBalances() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-2">
             <Filter className="w-4 h-4 text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">Filter by:</span>
+            <span className="text-sm font-medium text-gray-700">
+              Filter by:
+            </span>
             <button
               onClick={() => handleFilter("all")}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
@@ -244,7 +266,7 @@ export default function CustomerBalances() {
               Zero ({balances.zero_balance_count})
             </button>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-700">Sort by:</span>
             <button
@@ -256,9 +278,12 @@ export default function CustomerBalances() {
               }`}
             >
               Name
-              {sortBy === "name" && (
-                sortOrder === "asc" ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />
-              )}
+              {sortBy === "name" &&
+                (sortOrder === "asc" ? (
+                  <SortAsc className="w-4 h-4" />
+                ) : (
+                  <SortDesc className="w-4 h-4" />
+                ))}
             </button>
             <button
               onClick={() => handleSort("balance")}
@@ -269,9 +294,12 @@ export default function CustomerBalances() {
               }`}
             >
               Balance
-              {sortBy === "balance" && (
-                sortOrder === "asc" ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />
-              )}
+              {sortBy === "balance" &&
+                (sortOrder === "asc" ? (
+                  <SortAsc className="w-4 h-4" />
+                ) : (
+                  <SortDesc className="w-4 h-4" />
+                ))}
             </button>
           </div>
         </div>
@@ -279,20 +307,23 @@ export default function CustomerBalances() {
 
       {/* Filtered Summary */}
       {filter !== "all" && (
-        <div className={`p-4 rounded-xl border ${
-          filter === "positive" 
-            ? "bg-red-50 border-red-200 text-red-800"
-            : filter === "negative"
-            ? "bg-green-50 border-green-200 text-green-800"
-            : "bg-gray-50 border-gray-200 text-gray-800"
-        }`}>
+        <div
+          className={`p-4 rounded-xl border ${
+            filter === "positive"
+              ? "bg-red-50 border-red-200 text-red-800"
+              : filter === "negative"
+              ? "bg-green-50 border-green-200 text-green-800"
+              : "bg-gray-50 border-gray-200 text-gray-800"
+          }`}
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {filter === "positive" && <TrendingUp className="w-5 h-5" />}
               {filter === "negative" && <TrendingDown className="w-5 h-5" />}
               {filter === "zero" && <CreditCard className="w-5 h-5" />}
               <span className="font-semibold">
-                Showing {filteredCount} {filter} balance {filteredCount === 1 ? 'customer' : 'customers'}
+                Showing {filteredCount} {filter} balance{" "}
+                {filteredCount === 1 ? "customer" : "customers"}
               </span>
             </div>
             <span className="font-bold">
@@ -316,7 +347,7 @@ export default function CustomerBalances() {
                 </th>
                 <th className="py-4 px-6 text-right text-sm font-bold text-gray-700">
                   <div className="flex items-center justify-end gap-2">
-                    <DollarSign className="w-4 h-4" />
+                    <span>Rs</span>
                     Balance
                   </div>
                 </th>
@@ -349,13 +380,15 @@ export default function CustomerBalances() {
                       </div>
                     </td>
                     <td className="py-4 px-6 text-right">
-                      <span className={`text-lg font-bold ${
-                        customer.balance > 0 
-                          ? 'text-red-600' 
-                          : customer.balance < 0 
-                          ? 'text-green-600' 
-                          : 'text-gray-600'
-                      }`}>
+                      <span
+                        className={`text-lg font-bold ${
+                          customer.balance > 0
+                            ? "text-red-600"
+                            : customer.balance < 0
+                            ? "text-green-600"
+                            : "text-gray-600"
+                        }`}
+                      >
                         {formatCurrency(customer.balance)}
                       </span>
                     </td>
@@ -370,13 +403,15 @@ export default function CustomerBalances() {
                       </span>
                     </td>
                     <td className="py-4 px-6 text-center">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        customer.balance > 0
-                          ? "bg-red-100 text-red-800"
-                          : customer.balance < 0
-                          ? "bg-green-100 text-green-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}>
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          customer.balance > 0
+                            ? "bg-red-100 text-red-800"
+                            : customer.balance < 0
+                            ? "bg-green-100 text-green-800"
+                            : "bg-gray-100 text-gray-800"
+                        }`}
+                      >
                         {customer.balance > 0
                           ? "In Debt"
                           : customer.balance < 0
@@ -391,10 +426,12 @@ export default function CustomerBalances() {
                   <td colSpan="5" className="py-8 px-6 text-center">
                     <div className="flex flex-col items-center justify-center">
                       <UserX className="w-12 h-12 text-gray-400 mb-3" />
-                      <p className="text-gray-600 font-medium">No customers found</p>
+                      <p className="text-gray-600 font-medium">
+                        No customers found
+                      </p>
                       <p className="text-gray-500 text-sm mt-1">
-                        {filter === "all" 
-                          ? "No customers in the system" 
+                        {filter === "all"
+                          ? "No customers in the system"
                           : `No customers with ${filter} balance`}
                       </p>
                     </div>
@@ -410,15 +447,20 @@ export default function CustomerBalances() {
                   </span>
                 </td>
                 <td className="py-4 px-6 text-right">
-                  <span className={`text-xl font-bold ${
-                    filteredTotal > 0 ? 'text-red-600' : 'text-green-600'
-                  }`}>
+                  <span
+                    className={`text-xl font-bold ${
+                      filteredTotal > 0 ? "text-red-600" : "text-green-600"
+                    }`}
+                  >
                     {formatCurrency(filteredTotal)}
                   </span>
                 </td>
                 <td className="py-4 px-6 text-center">
                   <span className="font-bold text-gray-800">
-                    {filteredCustomers.reduce((sum, c) => sum + c.order_count, 0)}
+                    {filteredCustomers.reduce(
+                      (sum, c) => sum + c.order_count,
+                      0
+                    )}
                   </span>
                 </td>
                 <td colSpan="2"></td>
@@ -430,42 +472,50 @@ export default function CustomerBalances() {
 
       {/* Insights */}
       <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
-        <h4 className="text-lg font-semibold text-gray-800 mb-3">Balance Insights</h4>
+        <h4 className="text-lg font-semibold text-gray-800 mb-3">
+          Balance Insights
+        </h4>
         <div className="space-y-3">
           {balances.total_balance > 0 && (
             <div className="flex items-center gap-3 p-3 bg-red-50 rounded-lg">
               <TrendingUp className="w-4 h-4 text-red-600" />
               <p className="text-sm text-red-700">
-                <span className="font-semibold">Total Debt:</span> Customers owe a total of{" "}
-                {formatCurrency(balances.total_balance)} to the business.
+                <span className="font-semibold">Total Debt:</span> Customers owe
+                a total of {formatCurrency(balances.total_balance)} to the
+                business.
               </p>
             </div>
           )}
-          
+
           {balances.total_balance < 0 && (
             <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
               <TrendingDown className="w-4 h-4 text-green-600" />
               <p className="text-sm text-green-700">
-                <span className="font-semibold">Total Credit:</span> Business owes a total of{" "}
+                <span className="font-semibold">Total Credit:</span> Business
+                owes a total of{" "}
                 {formatCurrency(Math.abs(balances.total_balance))} to customers.
               </p>
             </div>
           )}
-          
+
           {balances.positive_balance_count > 0 && (
             <div className="flex items-center gap-3 p-3 bg-yellow-50 rounded-lg">
               <UserMinus className="w-4 h-4 text-yellow-600" />
               <p className="text-sm text-yellow-700">
-                <span className="font-semibold">{balances.positive_balance_count} customers in debt:</span>{" "}
+                <span className="font-semibold">
+                  {balances.positive_balance_count} customers in debt:
+                </span>{" "}
                 Consider sending payment reminders or offering payment plans.
               </p>
             </div>
           )}
-          
+
           <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
             <CreditCard className="w-4 h-4 text-blue-600" />
             <p className="text-sm text-blue-700">
-              <span className="font-semibold">Tip:</span> Regularly monitor customer balances to maintain healthy cash flow and customer relationships.
+              <span className="font-semibold">Tip:</span> Regularly monitor
+              customer balances to maintain healthy cash flow and customer
+              relationships.
             </p>
           </div>
         </div>

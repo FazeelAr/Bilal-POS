@@ -11,7 +11,6 @@ import ReportLoading from "../components/reports/ReportLoading";
 import ReportError from "../components/reports/ReportError";
 import CustomerBalances from "../components/reports/CustomerBalances";
 
-
 export default function Report() {
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState([]);
@@ -19,7 +18,11 @@ export default function Report() {
   // Set default dates
   const today = new Date();
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  const firstDayOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const firstDayOfLastMonth = new Date(
+    today.getFullYear(),
+    today.getMonth() - 1,
+    1
+  );
   const lastDayOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
 
   const [filters, setFilters] = useState({
@@ -91,7 +94,7 @@ export default function Report() {
 
       // Only add customer filter if a customer is selected
       if (filters.selectedCustomer) {
-        params.append('customer', filters.selectedCustomer);
+        params.append("customer", filters.selectedCustomer);
       }
 
       const res = await apiGet(`sales/orders/reports/daily/?${params}`);
@@ -111,15 +114,15 @@ export default function Report() {
 
       // Always include date range for monthly report
       if (filters.monthlyStartDate) {
-        params.append('start_date', filters.monthlyStartDate);
+        params.append("start_date", filters.monthlyStartDate);
       }
       if (filters.monthlyEndDate) {
-        params.append('end_date', filters.monthlyEndDate);
+        params.append("end_date", filters.monthlyEndDate);
       }
 
       // Only add customer filter if a customer is selected
       if (filters.selectedCustomer) {
-        params.append('customer', filters.selectedCustomer);
+        params.append("customer", filters.selectedCustomer);
       }
 
       console.log("📊 Fetching monthly report with params:", params.toString());
@@ -138,7 +141,9 @@ export default function Report() {
     try {
       // Validate date range
       if (!filters.rangeStartDate || !filters.rangeEndDate) {
-        setError("Please select both start and end dates for date range report");
+        setError(
+          "Please select both start and end dates for date range report"
+        );
         throw new Error("Please select both start and end dates");
       }
 
@@ -157,10 +162,13 @@ export default function Report() {
 
       // Only add customer filter if a customer is selected
       if (filters.selectedCustomer) {
-        params.append('customer', filters.selectedCustomer);
+        params.append("customer", filters.selectedCustomer);
       }
 
-      console.log("📊 Fetching date range report with params:", params.toString());
+      console.log(
+        "📊 Fetching date range report with params:",
+        params.toString()
+      );
       const res = await apiGet(`sales/orders/reports/date-range/?${params}`);
       if (res && res.data) {
         setReportData((prev) => ({ ...prev, range: res.data }));
@@ -184,7 +192,11 @@ export default function Report() {
       }, 2000);
     } else if (err.response?.status === 400) {
       // Bad request error from server
-      setError(err.response.data.error || err.response.data.detail || "Invalid request parameters");
+      setError(
+        err.response.data.error ||
+          err.response.data.detail ||
+          "Invalid request parameters"
+      );
     } else if (err.response?.data?.detail) {
       setError(err.response.data.detail);
     } else if (err.response?.data?.error) {
@@ -204,19 +216,23 @@ export default function Report() {
       const today = new Date();
 
       if (value === "monthly") {
-        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        setFilters(prev => ({
+        const firstDayOfMonth = new Date(
+          today.getFullYear(),
+          today.getMonth(),
+          1
+        );
+        setFilters((prev) => ({
           ...prev,
           monthlyStartDate: firstDayOfMonth.toISOString().split("T")[0],
-          monthlyEndDate: today.toISOString().split("T")[0]
+          monthlyEndDate: today.toISOString().split("T")[0],
         }));
       } else if (value === "range") {
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(today.getDate() - 30);
-        setFilters(prev => ({
+        setFilters((prev) => ({
           ...prev,
           rangeStartDate: thirtyDaysAgo.toISOString().split("T")[0],
-          rangeEndDate: today.toISOString().split("T")[0]
+          rangeEndDate: today.toISOString().split("T")[0],
         }));
       }
     }
@@ -225,8 +241,16 @@ export default function Report() {
   const handleClearFilters = () => {
     const today = new Date();
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const firstDayOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-    const lastDayOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+    const firstDayOfLastMonth = new Date(
+      today.getFullYear(),
+      today.getMonth() - 1,
+      1
+    );
+    const lastDayOfLastMonth = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      0
+    );
 
     setFilters({
       reportType: "daily",
@@ -248,11 +272,11 @@ export default function Report() {
     const today = new Date();
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    setFilters(prev => ({
+    setFilters((prev) => ({
       ...prev,
       reportType: "monthly",
       monthlyStartDate: firstDayOfMonth.toISOString().split("T")[0],
-      monthlyEndDate: today.toISOString().split("T")[0]
+      monthlyEndDate: today.toISOString().split("T")[0],
     }));
 
     // Wait a bit for state to update, then generate report
@@ -267,11 +291,11 @@ export default function Report() {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(today.getDate() - 30);
 
-    setFilters(prev => ({
+    setFilters((prev) => ({
       ...prev,
       reportType: "range",
       rangeStartDate: thirtyDaysAgo.toISOString().split("T")[0],
-      rangeEndDate: today.toISOString().split("T")[0]
+      rangeEndDate: today.toISOString().split("T")[0],
     }));
 
     // Wait a bit for state to update, then generate report
@@ -324,25 +348,14 @@ export default function Report() {
         <div className="flex flex-wrap gap-3 mb-6">
           <button
             onClick={() => {
-              setFilters(prev => ({ ...prev, reportType: "daily" }));
+              setFilters((prev) => ({ ...prev, reportType: "daily" }));
               setTimeout(() => generateReport(), 100);
             }}
             className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-200"
           >
             Today's Report
           </button>
-          <button
-            onClick={generateCurrentMonthReport}
-            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-200"
-          >
-            This Month
-          </button>
-          <button
-            onClick={generateLast30DaysReport}
-            className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-200"
-          >
-            Last 30 Days
-          </button>
+
           <button
             onClick={() => setActiveTab("balances")}
             className="px-4 py-2 bg-gradient-to-r from-yellow-600 to-orange-600 text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-200"
@@ -426,9 +439,7 @@ export default function Report() {
                     />
                   )}
 
-                  {activeTab === "balances" && (
-                    <CustomerBalances />
-                  )}
+                  {activeTab === "balances" && <CustomerBalances />}
 
                   {activeTab === "daily" && reportData.daily && (
                     <DailyReport report={reportData.daily} />
@@ -456,10 +467,11 @@ function TabButton({ active, onClick, icon, label }) {
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all duration-200 whitespace-nowrap ${active
-        ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md"
-        : "bg-white text-gray-700 hover:bg-purple-50 border border-purple-100"
-        }`}
+      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all duration-200 whitespace-nowrap ${
+        active
+          ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md"
+          : "bg-white text-gray-700 hover:bg-purple-50 border border-purple-100"
+      }`}
     >
       <span>{icon}</span>
       <span>{label}</span>

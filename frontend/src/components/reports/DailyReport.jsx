@@ -1,5 +1,5 @@
 import React from "react";
-import { Calendar, DollarSign, FileText, TrendingUp } from "lucide-react";
+import { Calendar, FileText, TrendingUp } from "lucide-react";
 import OrderDetailReport from "./OrderDetailReport";
 
 export default function DailyReport({ report }) {
@@ -47,7 +47,7 @@ export default function DailyReport({ report }) {
         <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2 bg-pink-100 rounded-lg">
-              <DollarSign className="w-5 h-5 text-pink-600" />
+              <span>Rs:</span>
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600">Total Sales</p>
@@ -101,8 +101,8 @@ export default function DailyReport({ report }) {
       {/* Order Details Section */}
       {report.orders && report.orders.length > 0 ? (
         <div className="mt-8">
-          <OrderDetailReport 
-            orders={report.orders} 
+          <OrderDetailReport
+            orders={report.orders}
             reportType="daily"
             date={report.date}
             customerName={report.customer_filter}

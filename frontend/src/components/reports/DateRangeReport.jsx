@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import {
   Calendar,
-  DollarSign,
   FileText,
   TrendingUp,
   Layers,
@@ -50,26 +49,39 @@ export default function DateRangeReport({ report }) {
       </div>
 
       {/* Customer Balance Summary */}
-      {report.customer_filter && report.customer_balance !== undefined && report.customer_balance !== null && (
-        <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-5 border border-blue-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <span className="text-lg font-bold">₹</span>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Customer Balance</p>
-                <p className={`text-2xl font-bold ${report.customer_balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                  {formatCurrency(report.customer_balance)}
-                </p>
-                <p className="text-sm text-gray-500 mt-1">
-                  Filtered by: <span className="font-semibold">{report.customer_filter}</span>
-                </p>
+      {report.customer_filter &&
+        report.customer_balance !== undefined &&
+        report.customer_balance !== null && (
+          <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-5 border border-blue-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <span className="text-lg font-bold">Rs</span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">
+                    Customer Balance
+                  </p>
+                  <p
+                    className={`text-2xl font-bold ${
+                      report.customer_balance > 0
+                        ? "text-red-600"
+                        : "text-green-600"
+                    }`}
+                  >
+                    {formatCurrency(report.customer_balance)}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Filtered by:{" "}
+                    <span className="font-semibold">
+                      {report.customer_filter}
+                    </span>
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Date Range Summary */}
       <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100 mb-6">
@@ -100,7 +112,7 @@ export default function DateRangeReport({ report }) {
         <div className="bg-white rounded-xl p-4 border border-purple-100 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-purple-100 rounded-lg">
-              <DollarSign className="w-5 h-5 text-purple-600" />
+              <span>Rs</span>
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600">Total Sales</p>
@@ -195,9 +207,7 @@ export default function DateRangeReport({ report }) {
             <tbody>
               {report.daily_breakdown.map((day, index) => (
                 <React.Fragment key={index}>
-                  <tr
-                    className="border-b border-gray-100 hover:bg-purple-50 transition-colors"
-                  >
+                  <tr className="border-b border-gray-100 hover:bg-purple-50 transition-colors">
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-gray-400" />
@@ -238,22 +248,24 @@ export default function DateRangeReport({ report }) {
                     </td>
                   </tr>
                   {/* Expanded Row with Order Details */}
-                  {expandedDay === index && day.orders && day.orders.length > 0 && (
-                    <tr>
-                      <td colSpan="4" className="p-0">
-                        <div className="p-6 bg-gray-50 border-b border-gray-200">
-                          <OrderDetailReport 
-                            orders={day.orders} 
-                            reportType="range"
-                            date={day.date}
-                            customerName={report.customer_filter}
-                            customerBalance={report.customer_balance}
-                            showBalance={false}
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  )}
+                  {expandedDay === index &&
+                    day.orders &&
+                    day.orders.length > 0 && (
+                      <tr>
+                        <td colSpan="4" className="p-0">
+                          <div className="p-6 bg-gray-50 border-b border-gray-200">
+                            <OrderDetailReport
+                              orders={day.orders}
+                              reportType="range"
+                              date={day.date}
+                              customerName={report.customer_filter}
+                              customerBalance={report.customer_balance}
+                              showBalance={false}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    )}
                 </React.Fragment>
               ))}
             </tbody>
@@ -264,8 +276,8 @@ export default function DateRangeReport({ report }) {
       {/* All Orders Summary */}
       {report.orders && report.orders.length > 0 && (
         <div className="mt-8">
-          <OrderDetailReport 
-            orders={report.orders} 
+          <OrderDetailReport
+            orders={report.orders}
             reportType="range"
             date={`${report.start_date} to ${report.end_date}`}
             customerName={report.customer_filter}
