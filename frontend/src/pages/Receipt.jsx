@@ -8,6 +8,7 @@ export default function Receipt() {
   const payload = location.state && location.state.payload;
   const [serverResp, setServerResp] = useState(null);
   const [logoError, setLogoError] = useState(false);
+  const [customerBalance, setCustomerBalance] = useState(null);
 
   useEffect(() => {
     if (!payload) {
@@ -88,6 +89,13 @@ export default function Receipt() {
           margin: 2px 0 !important;
           font-family: 'Arial', 'Helvetica', sans-serif !important;
         }
+        .print-area .balance-info {
+          font-size: 13px !important;
+          font-weight: 900 !important;
+          text-align: center !important;
+          margin: 3px 0 !important;
+          font-family: 'Arial', 'Helvetica', sans-serif !important;
+        }
         .print-area .date-info { 
           font-size: 14px !important; 
           text-align: center !important;
@@ -158,6 +166,14 @@ export default function Receipt() {
           border-top: 1px dashed #000 !important;
           margin-top: 3px !important;
         }
+        .print-area .account-balance-row {
+          font-size: 14px !important;
+          font-weight: 900 !important;
+          padding: 2px 0 !important;
+          border-top: 1px dotted #000 !important;
+          margin-top: 4px !important;
+          padding-top: 4px !important;
+        }
         .print-area .footer-text {
           text-align: center !important;
           font-size: 14px !important;
@@ -196,6 +212,15 @@ export default function Receipt() {
       }
     })();
 
+    // Get customer balance if customer object is available
+    if (
+      payload.customer &&
+      typeof payload.customer === "object" &&
+      payload.customer.balance !== undefined
+    ) {
+      setCustomerBalance(payload.customer.balance);
+    }
+
     // Auto-print with delay
     const t = setTimeout(() => {
       try {
@@ -230,6 +255,18 @@ export default function Receipt() {
   const handleLogoError = () => {
     setLogoError(true);
   };
+
+  // Get customer name
+  const customerName =
+    customer && typeof customer === "object" ? customer.name : customer;
+
+  // Determine customer balance (use from props or state)
+  const currentCustomerBalance =
+    customerBalance !== null
+      ? customerBalance
+      : customer && typeof customer === "object"
+      ? customer.balance
+      : null;
 
   return (
     <div
@@ -300,12 +337,20 @@ export default function Receipt() {
                   className="customer-info text-base md:text-lg font-bold text-center text-gray-900 mb-1"
                   style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
                 >
-                  {typeof customer === "object" ? customer.name : customer}
+                  {customerName}
                 </div>
                 <div className="sale-id text-xs text-center text-gray-700 mb-1">
                   <span className="font-semibold">Invoice #:</span>{" "}
                   {serverResp?.id || payload.saleId || "N/A"}
                 </div>
+
+                {/* Customer Account Balance */}
+                {currentCustomerBalance !== null && (
+                  <div
+                    className="balance-info text-center"
+                    style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+                  ></div>
+                )}
 
                 <div className="divider border-t-2 border-gray-800 my-2 md:my-3"></div>
               </>
@@ -426,6 +471,23 @@ export default function Receipt() {
                     )}
                 </>
               )}
+
+              {/* Customer Account Balance */}
+              {currentCustomerBalance !== null && (
+                <div
+                  className="account-balance-row flex justify-between items-center mt-2 pt-2"
+                  style={{
+                    fontFamily: "Arial, Helvetica, sans-serif",
+                    color: currentCustomerBalance >= 0 ? "#16a34a" : "#dc2626",
+                  }}
+                >
+                  <span>BALANCE:</span>
+                  <span>
+                    Rs {Math.abs(currentCustomerBalance).toFixed(2)}
+                    {currentCustomerBalance < 0 && " (Due)"}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="divider border-t-2 border-gray-800 my-2 md:my-3"></div>
@@ -456,7 +518,21 @@ export default function Receipt() {
                 {customer && (
                   <p className="text-sm text-green-800 mt-1">
                     <span className="font-semibold">Customer:</span>{" "}
-                    {typeof customer === "object" ? customer.name : customer}
+                    {customerName}
+                  </p>
+                )}
+                {currentCustomerBalance !== null && (
+                  <p
+                    className={`text-sm mt-1 ${
+                      currentCustomerBalance >= 0
+                        ? "text-green-800"
+                        : "text-red-800"
+                    }`}
+                  >
+                    <span className="font-semibold">Account Balance:</span> Rs{" "}
+                    {Math.abs(currentCustomerBalance).toFixed(2)}
+                    {currentCustomerBalance < 0 && " (Amount Due)"}
+                    {currentCustomerBalance >= 0 && " (Credit Balance)"}
                   </p>
                 )}
                 {isFullPayment && (
