@@ -19,6 +19,65 @@ class ClientViewSet(viewsets.ModelViewSet):
     queryset = Client.objects.all().order_by('name')
     serializer_class = ClientSerializer
     permission_classes = [IsAuthenticated]
+    
+    @action(detail=False, methods=['get'], url_path='balances')
+    def customer_balances(self, request):
+        """
+        Get all customers with their balances
+        Query params:
+        - sort: 'balance' or 'name' (default: 'name')
+        - order: 'asc' or 'desc' (default: 'asc')
+        """
+        try:
+            # Get all customers
+            customers = Client.objects.all()
+            
+            # Apply sorting
+            sort_by = request.query_params.get('sort', 'name')
+            order = request.query_params.get('order', 'asc')
+            
+            if sort_by == 'balance':
+                if order == 'desc':
+                    customers = customers.order_by('-balance')
+                else:
+                    customers = customers.order_by('balance')
+            else:  # sort by name
+                if order == 'desc':
+                    customers = customers.order_by('-name')
+                else:
+                    customers = customers.order_by('name')
+            
+            # Calculate total balance
+            total_balance = customers.aggregate(total=Sum('balance'))['total'] or 0
+            
+            # Get customer data
+            customer_data = []
+            for customer in customers:
+                customer_data.append({
+                    'id': customer.id,
+                    'name': customer.name,
+                    'balance': float(customer.balance),
+                    'order_count': customer.orders.count(),
+                    'last_order_date': customer.orders.order_by('-date').first().date if customer.orders.exists() else None
+                })
+            
+            return Response({
+                'customers': customer_data,
+                'total_balance': float(total_balance),
+                'count': len(customer_data),
+                'positive_balance_count': len([c for c in customer_data if c['balance'] > 0]),
+                'negative_balance_count': len([c for c in customer_data if c['balance'] < 0]),
+                'zero_balance_count': len([c for c in customer_data if c['balance'] == 0])
+            })
+            
+        except Exception as e:
+            print(f"Error in customer_balances: {e}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'error': f'Internal server error: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class OrderViewSet(viewsets.ModelViewSet):

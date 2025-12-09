@@ -9,17 +9,19 @@ import ReportSummary from "../components/reports/ReportSummary";
 import ReportEmptyState from "../components/reports/ReportEmptyState";
 import ReportLoading from "../components/reports/ReportLoading";
 import ReportError from "../components/reports/ReportError";
+import CustomerBalances from "../components/reports/CustomerBalances";
+
 
 export default function Report() {
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState([]);
-  
+
   // Set default dates
   const today = new Date();
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   const firstDayOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
   const lastDayOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
-  
+
   const [filters, setFilters] = useState({
     reportType: "daily",
     selectedCustomer: "",
@@ -86,13 +88,12 @@ export default function Report() {
       const params = new URLSearchParams({
         date: filters.dailyDate,
       });
-      
+
       // Only add customer filter if a customer is selected
       if (filters.selectedCustomer) {
         params.append('customer', filters.selectedCustomer);
       }
 
-      console.log("📊 Fetching daily report with params:", params.toString());
       const res = await apiGet(`sales/orders/reports/daily/?${params}`);
       if (res && res.data) {
         setReportData((prev) => ({ ...prev, daily: res.data }));
@@ -107,7 +108,7 @@ export default function Report() {
   const fetchMonthlyReport = async () => {
     try {
       const params = new URLSearchParams();
-      
+
       // Always include date range for monthly report
       if (filters.monthlyStartDate) {
         params.append('start_date', filters.monthlyStartDate);
@@ -115,7 +116,7 @@ export default function Report() {
       if (filters.monthlyEndDate) {
         params.append('end_date', filters.monthlyEndDate);
       }
-      
+
       // Only add customer filter if a customer is selected
       if (filters.selectedCustomer) {
         params.append('customer', filters.selectedCustomer);
@@ -153,7 +154,7 @@ export default function Report() {
         start_date: filters.rangeStartDate,
         end_date: filters.rangeEndDate,
       });
-      
+
       // Only add customer filter if a customer is selected
       if (filters.selectedCustomer) {
         params.append('customer', filters.selectedCustomer);
@@ -173,7 +174,7 @@ export default function Report() {
 
   const handleApiError = (err) => {
     console.error("API Error:", err);
-    
+
     if (err.response?.status === 401) {
       setAuthError(true);
       setError("Your session has expired. Redirecting to login...");
@@ -197,11 +198,11 @@ export default function Report() {
 
   const handleFilterChange = (name, value) => {
     setFilters((prev) => ({ ...prev, [name]: value }));
-    
+
     // If report type changes, auto-set default dates
     if (name === "reportType") {
       const today = new Date();
-      
+
       if (value === "monthly") {
         const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
         setFilters(prev => ({
@@ -226,7 +227,7 @@ export default function Report() {
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     const firstDayOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
     const lastDayOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
-    
+
     setFilters({
       reportType: "daily",
       selectedCustomer: "",
@@ -246,14 +247,14 @@ export default function Report() {
   const generateCurrentMonthReport = async () => {
     const today = new Date();
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    
+
     setFilters(prev => ({
       ...prev,
       reportType: "monthly",
       monthlyStartDate: firstDayOfMonth.toISOString().split("T")[0],
       monthlyEndDate: today.toISOString().split("T")[0]
     }));
-    
+
     // Wait a bit for state to update, then generate report
     setTimeout(() => {
       generateReport();
@@ -265,14 +266,14 @@ export default function Report() {
     const today = new Date();
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(today.getDate() - 30);
-    
+
     setFilters(prev => ({
       ...prev,
       reportType: "range",
       rangeStartDate: thirtyDaysAgo.toISOString().split("T")[0],
       rangeEndDate: today.toISOString().split("T")[0]
     }));
-    
+
     // Wait a bit for state to update, then generate report
     setTimeout(() => {
       generateReport();
@@ -289,7 +290,7 @@ export default function Report() {
   // If authentication error, show login prompt
   if (authError) {
     return (
-      <div className="min-h-screen bg-linear-to-br from-purple-50 via-pink-50 to-blue-50 p-4 md:p-6 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 p-4 md:p-6 flex items-center justify-center">
         <div className="max-w-md mx-auto text-center">
           <ReportHeader />
           <div className="bg-white rounded-2xl shadow-lg border border-purple-100 p-8 mt-6">
@@ -315,7 +316,7 @@ export default function Report() {
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-purple-50 via-pink-50 to-blue-50 p-4 md:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
         <ReportHeader />
 
@@ -341,6 +342,12 @@ export default function Report() {
             className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-200"
           >
             Last 30 Days
+          </button>
+          <button
+            onClick={() => setActiveTab("balances")}
+            className="px-4 py-2 bg-gradient-to-r from-yellow-600 to-orange-600 text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-200"
+          >
+            View Balances
           </button>
         </div>
 
@@ -375,6 +382,12 @@ export default function Report() {
                     icon="📊"
                     label="Summary"
                   />
+                  <TabButton
+                    active={activeTab === "balances"}
+                    onClick={() => setActiveTab("balances")}
+                    icon="💰"
+                    label="Balances"
+                  />
                   {reportData.daily && (
                     <TabButton
                       active={activeTab === "daily"}
@@ -400,8 +413,6 @@ export default function Report() {
                     />
                   )}
                 </div>
-
-                {/* Report Content */}
                 <div className="bg-white rounded-2xl shadow-lg border border-purple-100 p-4 md:p-6">
                   {activeTab === "summary" && !hasReportData && (
                     <ReportEmptyState />
@@ -413,6 +424,10 @@ export default function Report() {
                       monthlyReport={reportData.monthly}
                       rangeReport={reportData.range}
                     />
+                  )}
+
+                  {activeTab === "balances" && (
+                    <CustomerBalances />
                   )}
 
                   {activeTab === "daily" && reportData.daily && (
@@ -441,11 +456,10 @@ function TabButton({ active, onClick, icon, label }) {
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all duration-200 whitespace-nowrap ${
-        active
-          ? "bg-linear-to-r from-purple-600 to-pink-600 text-white shadow-md"
-          : "bg-white text-gray-700 hover:bg-purple-50 border border-purple-100"
-      }`}
+      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all duration-200 whitespace-nowrap ${active
+        ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md"
+        : "bg-white text-gray-700 hover:bg-purple-50 border border-purple-100"
+        }`}
     >
       <span>{icon}</span>
       <span>{label}</span>
