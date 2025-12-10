@@ -10,11 +10,15 @@ class ItemAdmin(admin.ModelAdmin):
     list_filter = ('price',)
     ordering = ('name',)
     
+    # Remove 'id' from fieldsets since it's auto-generated
     fieldsets = (
         ('Product Information', {
-            'fields': ('id', 'name')
+            'fields': ('name',)
         }),
         ('Pricing', {
             'fields': ('price',)
         }),
     )
+    
+    # OR use a simpler fields configuration
+    # fields = ('name', 'price')

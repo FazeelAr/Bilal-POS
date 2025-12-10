@@ -6,6 +6,7 @@ export default function Receipt() {
   const location = useLocation();
   const navigate = useNavigate();
   const payload = location.state && location.state.payload;
+  const backendResponse = location.state && location.state.response; // Get backend response
   const [serverResp, setServerResp] = useState(null);
   const [logoError, setLogoError] = useState(false);
 
@@ -228,35 +229,35 @@ export default function Receipt() {
     customer,
     payment_amount,
     payment_status,
+    balance_due,
   } = payload;
 
   // Determine if it's a partial or full payment
   const isFullPayment = payment_status === "paid";
   const isPartialPayment = payment_status === "partial";
+  const isUnpaid = payment_status === "unpaid";
   const hasPaymentInfo = payment_amount !== undefined;
+
+  // Get customer name and previous balance
+  const customerName =
+    customer && typeof customer === "object" ? customer.name : customer;
+
+  // Customer's previous balance (before this transaction)
+  const previousBalance =
+    customer && typeof customer === "object"
+      ? customer.starting_balance || customer.balance || 0
+      : 0;
 
   const handleLogoError = () => {
     setLogoError(true);
   };
 
-  // Get customer name and balance
-  const customerName =
-    customer && typeof customer === "object" ? customer.name : customer;
-  const customerBalance =
-    customer && typeof customer === "object" ? customer.balance : null;
+  // Calculate updated balance
+  const currentBillAmount = total || 0;
+  const paymentMade = payment_amount || 0;
 
-  // Calculate total balance due (should be customer.balance from backend which already includes current order)
-  // If customer.balance is not available, calculate it
-  let totalBalanceDue = customerBalance;
-
-  if (totalBalanceDue === null || totalBalanceDue === undefined) {
-    // Fallback calculation (should match your backend logic)
-    totalBalanceDue = total; // Current order total
-    if (hasPaymentInfo) {
-      totalBalanceDue -= payment_amount; // Subtract payment
-    }
-    // Note: This doesn't include previous balance, so backend should provide updated balance
-  }
+  // Updated Balance = Previous Balance + Current Bill - Payment Made
+  const updatedBalance = previousBalance + currentBillAmount - paymentMade;
 
   return (
     <div
@@ -270,7 +271,13 @@ export default function Receipt() {
             className="text-2xl font-bold text-white text-center"
             style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
           >
-            {isFullPayment ? "Payment Complete!" : "Receipt Generated"}
+            {isFullPayment
+              ? "Payment Complete!"
+              : isPartialPayment
+              ? "Partial Payment"
+              : isUnpaid
+              ? "Order Created"
+              : "Receipt Generated"}
           </h2>
         </div>
 
@@ -331,7 +338,10 @@ export default function Receipt() {
                 </div>
                 <div className="sale-id text-xs text-center text-gray-700 mb-1">
                   <span className="font-semibold">Invoice #:</span>{" "}
-                  {serverResp?.id || payload.saleId || "N/A"}
+                  {backendResponse?.id ||
+                    serverResp?.id ||
+                    payload.saleId ||
+                    "N/A"}
                 </div>
                 <div className="divider border-t-2 border-gray-800 my-2 md:my-3"></div>
               </>
@@ -420,13 +430,25 @@ export default function Receipt() {
 
             {/* Total and Payment Section */}
             <div className="total-section border-t-2 border-gray-800 mt-3 md:mt-4 pt-2 md:pt-3">
+              {/* Current Bill Total */}
               <div
                 className="total-row flex justify-between items-center text-base md:text-lg font-bold"
                 style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
               >
-                <span>TOTAL:</span>
-                <span>Rs {Number(total || 0).toFixed(2)}</span>
+                <span>CURRENT BILL:</span>
+                <span>Rs {Number(currentBillAmount || 0).toFixed(2)}</span>
               </div>
+
+              {/* Previous Balance */}
+              {previousBalance !== 0 && (
+                <div
+                  className="payment-row flex justify-between items-center text-sm md:text-base mt-1"
+                  style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+                >
+                  <span>PREVIOUS BALANCE:</span>
+                  <span>Rs {Number(previousBalance || 0).toFixed(2)}</span>
+                </div>
+              )}
 
               {/* Payment Information */}
               {hasPaymentInfo && (
@@ -435,36 +457,45 @@ export default function Receipt() {
                     className="payment-row flex justify-between items-center text-sm md:text-base mt-1"
                     style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
                   >
-                    <span>PAID:</span>
-                    <span>Rs {Number(payment_amount || 0).toFixed(2)}</span>
+                    <span>PAID TODAY:</span>
+                    <span>Rs {Number(paymentMade || 0).toFixed(2)}</span>
                   </div>
-                  {payment_status === "partial" &&
-                    payload.balance_due !== undefined && (
-                      <div
-                        className="balance-row flex justify-between items-center text-yellow-700 mt-1"
-                        style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
-                      >
-                        <span>BALANCE DUE:</span>
-                        <span>
-                          Rs {Math.abs(payload.balance_due).toFixed(2)}
-                        </span>
-                      </div>
-                    )}
+
+                  {/* Current Order Balance Due (if partial payment) */}
+                  {balance_due > 0 && (
+                    <div
+                      className="balance-row flex justify-between items-center text-yellow-700 mt-1"
+                      style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+                    >
+                      <span>THIS BILL BALANCE:</span>
+                      <span>Rs {balance_due.toFixed(2)}</span>
+                    </div>
+                  )}
                 </>
               )}
 
-              {/* TOTAL BALANCE DUE (Previous + Current - Payment) */}
+              {/* UPDATED TOTAL BALANCE */}
               <div
-                className="total-balance-row flex justify-between items-center"
+                className="total-balance-row flex justify-between items-center mt-2"
                 style={{
                   fontFamily: "Arial, Helvetica, sans-serif",
-                  color: totalBalanceDue >= 0 ? "#16a34a" : "#dc2626",
+                  color:
+                    updatedBalance > 0
+                      ? "#dc2626"
+                      : updatedBalance < 0
+                      ? "#16a34a"
+                      : "#000000",
+                  borderTop: "2px solid #000",
+                  paddingTop: "4px",
+                  marginTop: "4px",
                 }}
               >
-                <span>TOTAL BALANCE DUE:</span>
-                <span>
-                  Rs {Math.abs(totalBalanceDue || 0).toFixed(2)}
-                  {totalBalanceDue < 0 && " (Credit)"}
+                <span className="font-bold">UPDATED BALANCE:</span>
+                <span className="font-bold">
+                  Rs {Math.abs(updatedBalance).toFixed(2)}
+                  {updatedBalance > 0 && " (Amount Due)"}
+                  {updatedBalance < 0 && " (Credit)"}
+                  {updatedBalance === 0 && " (Settled)"}
                 </span>
               </div>
             </div>
@@ -485,48 +516,67 @@ export default function Receipt() {
 
           {/* Success Message */}
           <div className="mt-4 md:mt-6 space-y-3">
-            {serverResp && serverResp.id && (
-              <div
-                className="p-3 bg-green-50 border border-green-200 rounded-lg"
-                style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
-              >
-                <p className="text-sm text-green-800">
-                  <span className="font-semibold">Receipt ID:</span>{" "}
-                  {serverResp.id}
+            <div
+              className="p-3 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg"
+              style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+            >
+              <p className="text-sm text-purple-800">
+                <span className="font-semibold">Status:</span>{" "}
+                {isFullPayment
+                  ? "Fully Paid"
+                  : isPartialPayment
+                  ? "Partial Payment"
+                  : isUnpaid
+                  ? "Order Created (Unpaid)"
+                  : "Transaction Complete"}
+              </p>
+
+              {backendResponse?.id && (
+                <p className="text-sm text-purple-800 mt-1">
+                  <span className="font-semibold">Order ID:</span>{" "}
+                  {backendResponse.id}
                 </p>
-                {customer && (
-                  <p className="text-sm text-green-800 mt-1">
-                    <span className="font-semibold">Customer:</span>{" "}
-                    {customerName}
-                  </p>
-                )}
-                <p
-                  className={`text-sm mt-1 ${
-                    totalBalanceDue >= 0 ? "text-green-800" : "text-red-800"
-                  }`}
-                >
-                  <span className="font-semibold">Total Balance Due:</span> Rs{" "}
-                  {Math.abs(totalBalanceDue || 0).toFixed(2)}
-                  {totalBalanceDue < 0 && " (Credit Balance)"}
-                  {totalBalanceDue >= 0 &&
-                    totalBalanceDue > 0 &&
-                    " (Amount Due)"}
+              )}
+
+              {customer && (
+                <p className="text-sm text-purple-800 mt-1">
+                  <span className="font-semibold">Customer:</span>{" "}
+                  {customerName}
                 </p>
-                {isFullPayment && (
-                  <p className="text-sm text-green-800 mt-1">
-                    <span className="font-semibold">Status:</span> Fully Paid
+              )}
+
+              <div className="mt-2 space-y-1">
+                <p className="text-sm text-gray-700">
+                  <span className="font-semibold">Previous Balance:</span> Rs{" "}
+                  {previousBalance.toFixed(2)}
+                </p>
+                <p className="text-sm text-gray-700">
+                  <span className="font-semibold">Current Bill:</span> + Rs{" "}
+                  {currentBillAmount.toFixed(2)}
+                </p>
+                <p className="text-sm text-gray-700">
+                  <span className="font-semibold">Payment Made:</span> - Rs{" "}
+                  {paymentMade.toFixed(2)}
+                </p>
+                <div className="border-t border-gray-300 pt-1 mt-1">
+                  <p
+                    className={`text-sm font-bold ${
+                      updatedBalance > 0
+                        ? "text-red-800"
+                        : updatedBalance < 0
+                        ? "text-green-800"
+                        : "text-purple-800"
+                    }`}
+                  >
+                    <span className="font-semibold">Updated Balance:</span> Rs{" "}
+                    {Math.abs(updatedBalance).toFixed(2)}
+                    {updatedBalance > 0 && " (Amount Due)"}
+                    {updatedBalance < 0 && " (Credit Balance)"}
+                    {updatedBalance === 0 && " (Fully Settled)"}
                   </p>
-                )}
-                {isPartialPayment && (
-                  <p className="text-sm text-yellow-800 mt-1">
-                    <span className="font-semibold">Status:</span> Partial
-                    Payment
-                    {payload.balance_due > 0 &&
-                      ` - Balance Due: Rs ${payload.balance_due.toFixed(2)}`}
-                  </p>
-                )}
+                </div>
               </div>
-            )}
+            </div>
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-3">

@@ -58,8 +58,8 @@ export default function CustomerBalances() {
     return new Intl.NumberFormat("en-PK", {
       style: "currency",
       currency: "PKR",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(amount);
   };
 
@@ -145,16 +145,11 @@ export default function CustomerBalances() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
           <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <span>Rs</span>
-            </div>
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Balance</p>
-              <p
-                className={`text-2xl font-bold ${
-                  balances.total_balance > 0 ? "text-red-600" : "text-green-600"
-                }`}
-              >
+              <p className="text-sm font-large font-bold text-gray-600">
+                Total Balance
+              </p>
+              <p className="font-bold">
                 {formatCurrency(balances.total_balance)}
               </p>
             </div>
