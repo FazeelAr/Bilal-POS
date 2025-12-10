@@ -1,22 +1,49 @@
 import React, { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { apiPost } from "../api/api";
 
 export default function Receipt() {
+  const [searchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const payload = location.state && location.state.payload;
-  const backendResponse = location.state && location.state.response; // Get backend response
+
+  // Try to get data from URL first, then from location state
+  const [urlData, setUrlData] = useState(null);
+  const locationPayload = location.state && location.state.payload;
+  const backendResponse = location.state && location.state.response;
+
   const [serverResp, setServerResp] = useState(null);
   const [logoError, setLogoError] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!payload) {
+    // Check if we have data in URL params (for printing from reports)
+    const printData = searchParams.get('data');
+    const isPrintMode = searchParams.get('print') === 'true';
+
+    if (isPrintMode && printData) {
+      try {
+        // Decode the base64 data from URL
+        const decodedData = decodeURIComponent(atob(printData));
+        const parsedData = JSON.parse(decodedData);
+        setUrlData(parsedData);
+      } catch (e) {
+        console.error("Error parsing URL data", e);
+        // If can't parse URL data, try location state
+        if (!locationPayload) {
+          navigate("/pos");
+          return;
+        }
+      }
+    }
+
+    // If no data anywhere, redirect to POS
+    if (!locationPayload && !printData) {
       navigate("/pos");
       return;
     }
 
-    // Thermal printer optimized stylesheet
+    // Set up print styles
     const style = document.createElement("style");
     style.id = "receipt-print-style";
     style.innerHTML = `
@@ -42,7 +69,7 @@ export default function Receipt() {
           left: 0 !important; 
           top: 0 !important; 
           width: 88mm !important; 
-          box-sizing border-box !important; 
+          box-sizing: border-box !important; 
           padding: 2mm 6mm 2mm 6mm !important;
           background: white !important;
           color: black !important;
@@ -184,52 +211,96 @@ export default function Receipt() {
     `;
     document.head.appendChild(style);
 
-    // Send to backend receipt endpoint
+    // Send to backend receipt endpoint (only for new orders from POS)
     (async () => {
       try {
-        const receiptData = {
-          items: payload.items,
-          total: payload.total,
-          createdAt: payload.createdAt,
-          customer: payload.customer,
-          ...(payload.payment_amount && { paid: payload.payment_amount }),
-          ...(payload.balance_due !== undefined && {
-            change: payload.balance_due,
-          }),
-        };
+        const receiptData = urlData || locationPayload;
 
-        const res = await apiPost("sales/receipt/", receiptData);
-        setServerResp(res && res.data ? res.data : null);
+        // Only send to backend if it's a new order (not a reprint from reports)
+        if (receiptData && !urlData) {
+          const postData = {
+            items: receiptData.items,
+            total: receiptData.total,
+            createdAt: receiptData.createdAt,
+            customer: receiptData.customer,
+            ...(receiptData.payment_amount && { paid: receiptData.payment_amount }),
+            ...(receiptData.balance_due !== undefined && {
+              change: receiptData.balance_due,
+            }),
+          };
+
+          const res = await apiPost("sales/receipt/", postData);
+          setServerResp(res && res.data ? res.data : null);
+        }
       } catch (err) {
         console.warn("Receipt POST failed", err);
+      } finally {
+        setLoading(false);
       }
     })();
 
-    // Auto-print with delay
-    const t = setTimeout(() => {
-      try {
-        window.print();
-      } catch (e) {
-        console.log(e);
-      }
-    }, 400);
+    // Auto-print with delay (only if print=true in URL or from POS)
+    if (isPrintMode || locationPayload) {
+      const t = setTimeout(() => {
+        try {
+          window.print();
+        } catch (e) {
+          console.log(e);
+        }
+      }, 500);
 
-    return () => {
-      clearTimeout(t);
-      const s = document.getElementById("receipt-print-style");
-      if (s && s.parentNode) s.parentNode.removeChild(s);
-    };
-  }, [payload, navigate]);
+      return () => {
+        clearTimeout(t);
+        const s = document.getElementById("receipt-print-style");
+        if (s && s.parentNode) s.parentNode.removeChild(s);
+      };
+    } else {
+      setLoading(false);
+    }
+  }, [locationPayload, navigate, searchParams, urlData]);
 
-  if (!payload) return null;
+  // Use URL data if available, otherwise use location state
+  const payload = urlData || locationPayload;
+  const responseData = urlData ? { id: searchParams.get('orderId') || payload?.saleId } : backendResponse;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-purple-200 border-t-purple-600 mb-4"></div>
+          <p className="text-gray-600 font-medium">
+            Loading receipt...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!payload) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600 font-medium">
+            No receipt data found
+          </p>
+          <button
+            onClick={() => navigate("/pos")}
+            className="mt-4 px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium"
+          >
+            Go to POS
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const {
     items = [],
-    total,
-    customer,
-    payment_amount,
-    payment_status,
-    balance_due,
+    total = 0,
+    customer = {},
+    payment_amount = 0,
+    payment_status = "paid",
+    balance_due = 0,
   } = payload;
 
   // Determine if it's a partial or full payment
@@ -239,14 +310,12 @@ export default function Receipt() {
   const hasPaymentInfo = payment_amount !== undefined;
 
   // Get customer name and previous balance
-  const customerName =
-    customer && typeof customer === "object" ? customer.name : customer;
+  const customerName = customer && typeof customer === "object" ? customer.name : customer;
 
   // Customer's previous balance (before this transaction)
-  const previousBalance =
-    customer && typeof customer === "object"
-      ? customer.starting_balance || customer.balance || 0
-      : 0;
+  const previousBalance = customer && typeof customer === "object"
+    ? customer.starting_balance || customer.balance || 0
+    : 0;
 
   const handleLogoError = () => {
     setLogoError(true);
@@ -256,8 +325,28 @@ export default function Receipt() {
   const currentBillAmount = total || 0;
   const paymentMade = payment_amount || 0;
 
-  // Updated Balance = Previous Balance + Current Bill - Payment Made
-  const updatedBalance = previousBalance + currentBillAmount - paymentMade;
+  // Calculate updated balance based on payment scenario
+  let updatedBalance = previousBalance; // Default to previous balance
+
+  if (paymentMade !== undefined && paymentMade !== null) {
+    if (paymentMade < currentBillAmount) {
+      // Partial payment: add unpaid portion to balance
+      updatedBalance = previousBalance + (currentBillAmount - paymentMade);
+    } else if (paymentMade > (previousBalance + currentBillAmount)) {
+      // Overpayment: create credit (negative balance)
+      updatedBalance = previousBalance + currentBillAmount - paymentMade;
+    } else if (paymentMade === currentBillAmount) {
+      // Exact payment for current bill only: previous balance remains unchanged
+      updatedBalance = previousBalance;
+    } else if (paymentMade > currentBillAmount && paymentMade <= (previousBalance + currentBillAmount)) {
+      // Payment covers some or all of previous balance
+      const remainingAfterBill = paymentMade - currentBillAmount;
+      updatedBalance = previousBalance - remainingAfterBill;
+    }
+  } else {
+    // No payment made: add current bill to balance
+    updatedBalance = previousBalance + currentBillAmount;
+  }
 
   return (
     <div
@@ -271,13 +360,15 @@ export default function Receipt() {
             className="text-2xl font-bold text-white text-center"
             style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
           >
-            {isFullPayment
-              ? "Payment Complete!"
-              : isPartialPayment
-              ? "Partial Payment"
-              : isUnpaid
-              ? "Order Created"
-              : "Receipt Generated"}
+            {urlData ? "Reprint Receipt" : (
+              isFullPayment
+                ? "Payment Complete!"
+                : isPartialPayment
+                  ? "Partial Payment"
+                  : isUnpaid
+                    ? "Order Created"
+                    : "Receipt Generated"
+            )}
           </h2>
         </div>
 
@@ -338,7 +429,7 @@ export default function Receipt() {
                 </div>
                 <div className="sale-id text-xs text-center text-gray-700 mb-1">
                   <span className="font-semibold">Invoice #:</span>{" "}
-                  {backendResponse?.id ||
+                  {responseData?.id ||
                     serverResp?.id ||
                     payload.saleId ||
                     "N/A"}
@@ -421,7 +512,7 @@ export default function Receipt() {
                       className="py-1.5 text-right align-top font-semibold"
                       style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
                     >
-                      {Number(it.lineTotal).toFixed(2)}
+                      {Number(it.lineTotal || 0).toFixed(2)}
                     </td>
                   </tr>
                 ))}
@@ -468,7 +559,7 @@ export default function Receipt() {
                       style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
                     >
                       <span>THIS BILL BALANCE:</span>
-                      <span>Rs {balance_due.toFixed(2)}</span>
+                      <span>Rs {Number(balance_due).toFixed(2)}</span>
                     </div>
                   )}
                 </>
@@ -483,8 +574,8 @@ export default function Receipt() {
                     updatedBalance > 0
                       ? "#dc2626"
                       : updatedBalance < 0
-                      ? "#16a34a"
-                      : "#000000",
+                        ? "#16a34a"
+                        : "#000000",
                   borderTop: "2px solid #000",
                   paddingTop: "4px",
                   marginTop: "4px",
@@ -510,75 +601,12 @@ export default function Receipt() {
               Thank You For Your Business!
             </div>
             <div className="text-xs text-center text-gray-500 mt-1">
-              Please keep this receipt for your records
+              {urlData ? "Reprinted Receipt" : "Please keep this receipt for your records"}
             </div>
           </div>
 
-          {/* Success Message */}
-          <div className="mt-4 md:mt-6 space-y-3">
-            <div
-              className="p-3 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg"
-              style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
-            >
-              <p className="text-sm text-purple-800">
-                <span className="font-semibold">Status:</span>{" "}
-                {isFullPayment
-                  ? "Fully Paid"
-                  : isPartialPayment
-                  ? "Partial Payment"
-                  : isUnpaid
-                  ? "Order Created (Unpaid)"
-                  : "Transaction Complete"}
-              </p>
-
-              {backendResponse?.id && (
-                <p className="text-sm text-purple-800 mt-1">
-                  <span className="font-semibold">Order ID:</span>{" "}
-                  {backendResponse.id}
-                </p>
-              )}
-
-              {customer && (
-                <p className="text-sm text-purple-800 mt-1">
-                  <span className="font-semibold">Customer:</span>{" "}
-                  {customerName}
-                </p>
-              )}
-
-              <div className="mt-2 space-y-1">
-                <p className="text-sm text-gray-700">
-                  <span className="font-semibold">Previous Balance:</span> Rs{" "}
-                  {previousBalance.toFixed(2)}
-                </p>
-                <p className="text-sm text-gray-700">
-                  <span className="font-semibold">Current Bill:</span> + Rs{" "}
-                  {currentBillAmount.toFixed(2)}
-                </p>
-                <p className="text-sm text-gray-700">
-                  <span className="font-semibold">Payment Made:</span> - Rs{" "}
-                  {paymentMade.toFixed(2)}
-                </p>
-                <div className="border-t border-gray-300 pt-1 mt-1">
-                  <p
-                    className={`text-sm font-bold ${
-                      updatedBalance > 0
-                        ? "text-red-800"
-                        : updatedBalance < 0
-                        ? "text-green-800"
-                        : "text-purple-800"
-                    }`}
-                  >
-                    <span className="font-semibold">Updated Balance:</span> Rs{" "}
-                    {Math.abs(updatedBalance).toFixed(2)}
-                    {updatedBalance > 0 && " (Amount Due)"}
-                    {updatedBalance < 0 && " (Credit Balance)"}
-                    {updatedBalance === 0 && " (Fully Settled)"}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
+          {/* Action Buttons */}
+          <div className="mt-6 space-y-3">
             <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={() => window.print()}

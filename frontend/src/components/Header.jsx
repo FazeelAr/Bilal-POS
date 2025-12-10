@@ -32,7 +32,7 @@ function Header() {
   };
 
   return (
-    <header className="bg-gradient-to-r from-purple-600 via-pink-500 to-rose-500 shadow-xl relative overflow-hidden">
+    <header className="bg-linear-to-r from-purple-600 via-pink-500 to-rose-500 shadow-xl relative overflow-hidden">
       {/* Decorative background elements */}
       <div className="absolute inset-0 bg-white/5 backdrop-blur-sm"></div>
       <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full -mr-48 -mt-48"></div>
@@ -66,7 +66,7 @@ function Header() {
           {/* Add Customer Button */}
           <button
             onClick={handleAddCustomer}
-            className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-4 py-2 rounded-lg transition-all duration-200 font-semibold shadow-lg hover:shadow-xl flex items-center gap-2"
+            className="bg-linear-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-4 py-2 rounded-lg transition-all duration-200 font-semibold shadow-lg hover:shadow-xl flex items-center gap-2"
           >
             <UserPlus className="w-4 h-4" />
             Add Customer

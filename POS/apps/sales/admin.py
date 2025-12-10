@@ -27,17 +27,26 @@ class OrderAdmin(admin.ModelAdmin):
     search_fields = ('id', 'client__name')
     date_hierarchy = 'date'
     autocomplete_fields = ['client']
-    readonly_fields = ('total',)
+    readonly_fields = ('date', 'total')  # Make both date and total read-only
     inlines = [OrderItemInline]
     
+    # Simplified fieldsets without 'id'
     fieldsets = (
         ('Order Information', {
-            'fields': ('id', 'client', 'date')
+            'fields': ('client',)
         }),
         ('Financial', {
             'fields': ('total',)
         }),
     )
+    
+    def get_readonly_fields(self, request, obj=None):
+        """Make additional fields read-only when editing"""
+        readonly_fields = super().get_readonly_fields(request, obj)
+        if obj:  # If editing an existing object
+            # Add client to readonly fields when editing
+            readonly_fields = list(readonly_fields) + ['client']
+        return readonly_fields
 
 
 @admin.register(OrderItem)

@@ -3,9 +3,9 @@ import { Heart, ExternalLink } from "lucide-react";
 
 function Footer() {
   return (
-    <footer className="bg-gradient-to-r from-gray-900 via-purple-900 to-gray-900 text-white py-8 mt-auto relative overflow-hidden">
+    <footer className="bg-linear-to-r from-gray-900 via-purple-900 to-gray-900 text-white py-8 mt-auto relative overflow-hidden">
       {/* Decorative background */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+      <div className="absolute inset-0 bg-linear-to-t from-black/20 to-transparent"></div>
       <div className="absolute top-0 left-1/4 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl"></div>
       <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-pink-500/10 rounded-full blur-3xl"></div>
 
@@ -22,7 +22,7 @@ function Footer() {
           href="https://famtrixsolutions.com"
           target="_blank"
           rel="noopener noreferrer"
-          className="group inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 px-6 py-3 rounded-xl font-bold text-white transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
+          className="group inline-flex items-center gap-2 bg-linear-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 px-6 py-3 rounded-xl font-bold text-white transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
         >
           <span className="text-lg">famtrixsolutions.com</span>
           <ExternalLink className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />

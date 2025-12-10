@@ -6,12 +6,12 @@ import {
   Hash,
   ShoppingBag,
   CreditCard,
+  Printer,
 } from "lucide-react";
 
 export default function OrderDetailReport({
   orders,
   reportType,
-
   customerName,
   customerBalance,
   showBalance = true,
@@ -43,6 +43,42 @@ export default function OrderDetailReport({
     0
   );
 
+  const handlePrintReceipt = (order) => {
+    // Create receipt payload from order data
+    const receiptPayload = {
+      items: (order.items || []).map(item => ({
+        name: item.name || "Product",
+        qty: parseFloat(item.quantity) || 0,
+        price: parseFloat(item.price) || 0,
+        factor: 1,
+        lineTotal: parseFloat(item.total) || 0,
+        productId: item.id || Math.random().toString(36).substr(2, 9)
+      })),
+      total: parseFloat(order.amount) || 0,
+      createdAt: order.order_date || new Date().toISOString(),
+      customer: {
+        name: order.customer_name || customerName || "Customer",
+        balance: customerBalance || 0,
+        starting_balance: customerBalance || 0
+      },
+      payment_amount: parseFloat(order.amount) || 0,
+      payment_status: 'paid',
+      balance_due: 0,
+      saleId: order.id
+    };
+
+    // Convert payload to base64 to pass in URL
+    const encodedPayload = btoa(encodeURIComponent(JSON.stringify(receiptPayload)));
+
+    // Open receipt page with data in URL
+    const receiptUrl = `/receipt?print=true&data=${encodedPayload}&orderId=${order.id}`;
+    const receiptWindow = window.open(receiptUrl, '_blank');
+
+    if (receiptWindow) {
+      receiptWindow.focus();
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between mb-4">
@@ -53,8 +89,8 @@ export default function OrderDetailReport({
               {reportType === "daily"
                 ? "Daily"
                 : reportType === "monthly"
-                ? "Monthly"
-                : "Date Range"}{" "}
+                  ? "Monthly"
+                  : "Date Range"}{" "}
               Orders
             </h3>
             {customerName && (
@@ -73,7 +109,7 @@ export default function OrderDetailReport({
       {showBalance &&
         customerBalance !== undefined &&
         customerBalance !== null && (
-          <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-5 border border-blue-200">
+          <div className="bg-linear-to-r from-blue-50 to-cyan-50 rounded-xl p-5 border border-blue-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-100 rounded-lg">
@@ -84,9 +120,8 @@ export default function OrderDetailReport({
                     Customer Balance
                   </p>
                   <p
-                    className={`text-2xl font-bold ${
-                      customerBalance > 0 ? "text-red-600" : "text-green-600"
-                    }`}
+                    className={`text-2xl font-bold ${customerBalance > 0 ? "text-red-600" : "text-green-600"
+                      }`}
                   >
                     {formatCurrency(customerBalance)}
                   </p>
@@ -106,19 +141,19 @@ export default function OrderDetailReport({
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
+        <div className="bg-linear-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
           <p className="text-sm font-medium text-gray-600 mb-2">Total Orders</p>
           <p className="text-2xl font-bold text-gray-800">{orders.length}</p>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
+        <div className="bg-linear-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
           <p className="text-sm font-medium text-gray-600 mb-2">Total Amount</p>
-          <p className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+          <p className="text-2xl font-bold bg-linear-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
             {formatCurrency(totalAmount)}
           </p>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
+        <div className="bg-linear-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
           <p className="text-sm font-medium text-gray-600 mb-2">Total Items</p>
           <p className="text-2xl font-bold text-blue-600">{totalItems}</p>
         </div>
@@ -149,13 +184,16 @@ export default function OrderDetailReport({
                 <span>Rs</span>
                 Amount
               </th>
+              <th className="py-4 px-6 text-left text-sm font-bold text-gray-700">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody>
             {orders.map((order) => (
               <tr
                 key={order.id}
-                className="border-b border-gray-100 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 transition-colors"
+                className="border-b border-gray-100 hover:bg-linear-to-r hover:from-purple-50 hover:to-pink-50 transition-colors"
               >
                 <td className="py-4 px-6">
                   <span className="font-mono font-semibold text-gray-800">
@@ -179,13 +217,16 @@ export default function OrderDetailReport({
                     </span>
                     <div className="text-xs text-gray-500 mt-1 max-w-xs truncate">
                       {order.items &&
-                        order.items.map((item, idx) => (
+                        order.items.slice(0, 2).map((item, idx) => (
                           <span key={idx}>
                             {item.name} ({item.quantity} ×{" "}
                             {formatCurrency(item.price)})
-                            {idx < order.items.length - 1 ? ", " : ""}
+                            {idx < Math.min(order.items.length - 1, 1) ? ", " : ""}
                           </span>
                         ))}
+                      {order.items && order.items.length > 2 && (
+                        <span>... and {order.items.length - 2} more</span>
+                      )}
                     </div>
                   </div>
                 </td>
@@ -194,22 +235,33 @@ export default function OrderDetailReport({
                     {formatCurrency(order.amount)}
                   </span>
                 </td>
+                <td className="py-4 px-6">
+                  <button
+                    onClick={() => handlePrintReceipt(order)}
+                    className="px-3 py-1.5 bg-linear-to-r from-blue-500 to-cyan-500 text-white rounded-lg text-sm font-medium hover:from-blue-600 hover:to-cyan-600 transition-colors flex items-center gap-1 shadow-sm hover:shadow"
+                    title="Print Receipt"
+                  >
+                    <Printer className="w-4 h-4" />
+                    Print
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr className="bg-gradient-to-r from-purple-50 to-pink-50 border-t-2 border-purple-200">
+            <tr className="bg-linear-to-r from-purple-50 to-pink-50 border-t-2 border-purple-200">
               <td
-                colSpan="4"
+                colSpan="5"
                 className="py-5 px-6 text-lg font-bold text-gray-900"
               >
                 Total ({orders.length} orders)
               </td>
               <td className="py-5 px-6">
-                <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                <span className="text-2xl font-bold bg-linear-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
                   {formatCurrency(totalAmount)}
                 </span>
               </td>
+              <td></td>
             </tr>
           </tfoot>
         </table>
@@ -234,9 +286,19 @@ export default function OrderDetailReport({
                           {formatDate(order.order_date)}
                         </span>
                       </div>
-                      <span className="font-bold text-gray-900">
-                        {formatCurrency(order.amount)}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-gray-900">
+                          {formatCurrency(order.amount)}
+                        </span>
+                        <button
+                          onClick={() => handlePrintReceipt(order)}
+                          className="ml-2 px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm font-medium hover:bg-blue-200 transition-colors flex items-center gap-1"
+                          title="Print Receipt"
+                        >
+                          <Printer className="w-3 h-3" />
+                          Print
+                        </button>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       {order.items.map((item, index) => (

@@ -113,7 +113,7 @@ export default function CustomerBalances() {
 
   if (error) {
     return (
-      <div className="bg-gradient-to-r from-red-50 to-pink-50 rounded-2xl p-6 border border-red-200">
+      <div className="bg-linear-to-r from-red-50 to-pink-50 rounded-2xl p-6 border border-red-200">
         <div className="flex items-start gap-3">
           <div className="p-2 bg-red-100 rounded-lg">
             <Users className="w-5 h-5 text-red-600" />
@@ -143,7 +143,7 @@ export default function CustomerBalances() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
+        <div className="bg-linear-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
           <div className="flex items-center gap-3 mb-3">
             <div>
               <p className="text-sm font-large font-bold text-gray-600">
@@ -156,7 +156,7 @@ export default function CustomerBalances() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-xl p-5 border border-red-100">
+        <div className="bg-linear-to-br from-red-50 to-orange-50 rounded-xl p-5 border border-red-100">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2 bg-red-100 rounded-lg">
               <TrendingUp className="w-5 h-5 text-red-600" />
@@ -175,7 +175,7 @@ export default function CustomerBalances() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-5 border border-green-100">
+        <div className="bg-linear-to-br from-green-50 to-emerald-50 rounded-xl p-5 border border-green-100">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2 bg-green-100 rounded-lg">
               <TrendingDown className="w-5 h-5 text-green-600" />
@@ -194,7 +194,7 @@ export default function CustomerBalances() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl p-5 border border-gray-100">
+        <div className="bg-linear-to-br from-gray-50 to-slate-50 rounded-xl p-5 border border-gray-100">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2 bg-gray-100 rounded-lg">
               <CreditCard className="w-5 h-5 text-gray-600" />
@@ -466,7 +466,7 @@ export default function CustomerBalances() {
       </div>
 
       {/* Insights */}
-      <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
+      <div className="bg-linear-to-r from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
         <h4 className="text-lg font-semibold text-gray-800 mb-3">
           Balance Insights
         </h4>

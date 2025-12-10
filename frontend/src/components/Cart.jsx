@@ -188,10 +188,10 @@ export default function Cart() {
   };
 
   return (
-    <aside className="w-[500px] min-h-screen bg-gradient-to-br from-white to-purple-50 p-4 rounded-2xl shadow-lg border border-purple-100 relative">
+    <aside className="w-[500px] min-h-screen bg-linear-to-br from-white to-purple-50 p-4 rounded-2xl shadow-lg border border-purple-100 relative">
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
-        <div className="p-2 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl shadow">
+        <div className="p-2 bg-linear-to-br from-purple-600 to-pink-600 rounded-xl shadow">
           <ShoppingCart className="w-4 h-4 text-white" />
         </div>
         <div>
@@ -204,7 +204,7 @@ export default function Cart() {
 
       {cart.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-[calc(100vh-200px)] text-center px-4">
-          <div className="w-16 h-16 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-3">
+          <div className="w-16 h-16 bg-linear-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-3">
             <ShoppingCart className="w-6 h-6 text-purple-400" />
           </div>
           <p className="text-gray-400 text-sm font-medium mb-1">
@@ -232,7 +232,7 @@ export default function Cart() {
                   key={it.productPriceId}
                   className={`relative p-3 rounded-xl shadow-sm transition-all duration-200 ${
                     hasError
-                      ? "bg-gradient-to-r from-red-50 to-pink-50 border border-red-300"
+                      ? "bg-linear-to-r from-red-50 to-pink-50 border border-red-300"
                       : "bg-white border border-purple-100 hover:shadow-md hover:border-purple-200"
                   }`}
                 >
@@ -258,7 +258,7 @@ export default function Cart() {
                   </div>
 
                   {/* Price */}
-                  <div className="text-xs font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
+                  <div className="text-xs font-bold bg-linear-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
                     Rs {Number(it.price || 0).toFixed(2)}/kg
                   </div>
 
@@ -337,7 +337,7 @@ export default function Cart() {
                         className={`font-bold text-sm ${
                           hasError
                             ? "text-red-600"
-                            : "bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent"
+                            : "bg-linear-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent"
                         }`}
                       >
                         Rs {itemTotal(it).toFixed(2)}
@@ -345,7 +345,7 @@ export default function Cart() {
                     </div>
                     <button
                       onClick={() => removeFromCart(it.productPriceId)}
-                      className="group p-1.5 rounded-lg bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white border-none text-xs font-bold cursor-pointer shadow-sm hover:shadow transition-all duration-200"
+                      className="group p-1.5 rounded-lg bg-linear-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white border-none text-xs font-bold cursor-pointer shadow-sm hover:shadow transition-all duration-200"
                       title="Remove item"
                     >
                       <Trash2 className="w-3 h-3 group-hover:scale-110 transition-transform" />
@@ -363,8 +363,8 @@ export default function Cart() {
         <div
           className={`absolute bottom-0 left-0 right-0 p-4 rounded-b-2xl shadow-lg backdrop-blur-md transition-all duration-200 ${
             isCheckoutDisabled()
-              ? "bg-gradient-to-r from-gray-400 to-gray-500"
-              : "bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600"
+              ? "bg-linear-to-r from-gray-400 to-gray-500"
+              : "bg-linear-to-r from-purple-600 via-pink-600 to-purple-600"
           }`}
         >
           <div className="space-y-4">
@@ -439,7 +439,7 @@ export default function Cart() {
 
               {/* Change Display */}
               {changeAmount > 0 && (
-                <div className="p-2 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-lg border border-green-400/30">
+                <div className="p-2 bg-linear-to-r from-green-500/20 to-emerald-500/20 rounded-lg border border-green-400/30">
                   <div className="flex justify-between items-center">
                     <span className="text-white text-sm font-medium">
                       Change Due:
@@ -467,7 +467,7 @@ export default function Cart() {
                     !isPaymentAmountValid() ||
                     processingPayment
                       ? "bg-gray-300 text-gray-500 cursor-not-allowed opacity-70"
-                      : "bg-gradient-to-r from-green-500 to-emerald-600 text-white cursor-pointer hover:scale-105 hover:shadow-xl"
+                      : "bg-linear-to-r from-green-500 to-emerald-600 text-white cursor-pointer hover:scale-105 hover:shadow-xl"
                   }`}
                 >
                   {processingPayment ? (
