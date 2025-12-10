@@ -1,6 +1,8 @@
+# serializers.py
 from rest_framework import serializers
 from .models import Client, Order, OrderItem
 from django.db import transaction
+from decimal import Decimal
 
 
 class ClientSerializer(serializers.ModelSerializer):
@@ -27,7 +29,7 @@ class OrderItemCreateSerializer(serializers.Serializer):
     """Serializer for creating order items"""
     product = serializers.CharField()  # Item ID
     quantity = serializers.DecimalField(max_digits=10, decimal_places=2)
-    factor = serializers.DecimalField(max_digits=10, decimal_places=2, default=1)
+    factor = serializers.DecimalField(max_digits=10, decimal_places=2, default=Decimal('1'))
     price = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
 
 
@@ -35,6 +37,11 @@ class OrderCreateSerializer(serializers.Serializer):
     """Serializer for creating orders"""
     customer = serializers.CharField()  # Client ID
     items = OrderItemCreateSerializer(many=True)
+    payment_amount = serializers.DecimalField(max_digits=10, decimal_places=2, required=True)
+    payment_method = serializers.CharField(required=True)
+    payment_status = serializers.CharField(required=True)
+    total_amount = serializers.DecimalField(max_digits=10, decimal_places=2, required=True)
+    balance_due = serializers.DecimalField(max_digits=10, decimal_places=2, required=True)
     
     def validate_items(self, value):
         if not value:
@@ -48,6 +55,10 @@ class OrderCreateSerializer(serializers.Serializer):
         
         customer_id = validated_data['customer']
         items_data = validated_data['items']
+        payment_amount = validated_data['payment_amount']
+        total_amount = validated_data['total_amount']
+        balance_due = validated_data['balance_due']
+        payment_status = validated_data['payment_status']
         
         # Get customer
         try:
@@ -56,7 +67,7 @@ class OrderCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError({"customer": "Customer not found"})
         
         # Calculate total and prepare order items
-        order_total = 0
+        order_total = Decimal('0')
         order_items_to_create = []
         
         for item_data in items_data:
@@ -68,7 +79,7 @@ class OrderCreateSerializer(serializers.Serializer):
                 })
             
             quantity = item_data['quantity']
-            factor = item_data.get('factor', 1)
+            factor = item_data.get('factor', Decimal('1'))
             
             # Calculate final price: base_price * factor
             final_price = product.price * factor
@@ -80,6 +91,13 @@ class OrderCreateSerializer(serializers.Serializer):
                 'item': product,
                 'quantity': quantity,
                 'price': final_price,  # Store the factored price
+            })
+        
+        # Validate that calculated total matches provided total
+        # Convert to float for comparison to handle Decimal objects properly
+        if abs(float(order_total) - float(total_amount)) > 0.01:  # Allow for rounding differences
+            raise serializers.ValidationError({
+                "total_amount": f"Calculated total ({order_total}) doesn't match provided total ({total_amount})"
             })
         
         # Create order (ID will be auto-generated)
@@ -98,8 +116,14 @@ class OrderCreateSerializer(serializers.Serializer):
                 price=item_data['price']
             )
         
-        # Update customer balance (add order total to balance - representing debt)
-        customer.balance += order_total
+        # CORRECTED: Update customer balance based on payment
+        # The balance field represents what the customer owes (debt)
+        # If customer pays less than total, their debt increases
+        # If customer pays more than total, their debt decreases
+        # net_balance_change = order_total - payment_amount
+        
+        net_balance_change = order_total - payment_amount
+        customer.balance += net_balance_change
         customer.save()
         
         return order

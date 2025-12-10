@@ -1,12 +1,6 @@
 import React, { useState } from "react";
 import { useCart } from "../context/useCart";
-import {
-  ShoppingCart,
-  Trash2,
-  AlertCircle,
-  Printer,
-  CheckCircle,
-} from "lucide-react";
+import { ShoppingCart, Trash2, AlertCircle, CheckCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { apiPost } from "../api/api";
 
@@ -44,13 +38,8 @@ export default function Cart() {
     }
 
     const payment = parseFloat(paymentAmount);
-    if (isNaN(payment) || payment <= 0) {
+    if (isNaN(payment) || payment < 0) {
       alert("Please enter a valid payment amount");
-      return;
-    }
-
-    if (payment > grandTotal) {
-      alert("Payment amount cannot be greater than total amount");
       return;
     }
 
@@ -64,7 +53,18 @@ export default function Cart() {
         price: (Number(it.price) || 0) * (Number(it.factor) || 1),
       }));
 
-      const payment_status = payment === grandTotal ? "paid" : "partial";
+      // Determine payment status
+      let payment_status = "partial";
+      if (payment === 0) {
+        payment_status = "unpaid";
+      } else if (payment === grandTotal) {
+        payment_status = "paid";
+      } else if (payment < grandTotal) {
+        payment_status = "partial";
+      } else {
+        payment_status = "overpaid";
+      }
+
       const balance_due = grandTotal - payment;
 
       const payload = {
@@ -115,14 +115,30 @@ export default function Cart() {
         payment_status: payment_status,
       };
 
+      // Determine success message based on payment status
+      let successMessage = "";
+      switch (payment_status) {
+        case "paid":
+          successMessage = "Payment completed successfully!";
+          break;
+        case "partial":
+          successMessage = "Partial payment received!";
+          break;
+        case "unpaid":
+          successMessage = "Order created successfully (unpaid)!";
+          break;
+        case "overpaid":
+          successMessage = "Payment completed with change due!";
+          break;
+        default:
+          successMessage = "Transaction completed!";
+      }
+
       navigate("/receipt", {
         state: {
           payload: receiptPayload,
           response: backendOrder,
-          message:
-            payment_status === "paid"
-              ? "Payment completed successfully!"
-              : "Partial payment received!",
+          message: successMessage,
         },
       });
 
@@ -140,14 +156,36 @@ export default function Cart() {
     setPaymentAmount(grandTotal.toFixed(2));
   };
 
+  const handleZeroPayment = () => {
+    setPaymentAmount("0.00");
+  };
+
   const calculateChange = () => {
     const payment = parseFloat(paymentAmount);
-    if (isNaN(payment) || payment <= 0) return 0;
+    if (isNaN(payment) || payment < 0) return 0;
     if (payment < grandTotal) return 0;
     return payment - grandTotal;
   };
 
   const changeAmount = calculateChange();
+
+  // Check if payment amount is valid (0 is now valid)
+  const isPaymentAmountValid = () => {
+    const payment = parseFloat(paymentAmount);
+    return !isNaN(payment) && payment >= 0;
+  };
+
+  // Determine payment status text
+  const getPaymentStatusText = () => {
+    const payment = parseFloat(paymentAmount);
+    if (isNaN(payment) || payment < 0) return "";
+
+    if (payment === 0) return "Order will be created as unpaid";
+    if (payment === grandTotal) return "Full payment";
+    if (payment > grandTotal) return "Change due";
+    if (payment > 0 && payment < grandTotal) return "Partial payment";
+    return "";
+  };
 
   return (
     <aside className="w-[500px] min-h-screen bg-gradient-to-br from-white to-purple-50 p-4 rounded-2xl shadow-lg border border-purple-100 relative">
@@ -374,14 +412,29 @@ export default function Cart() {
                       className="w-full pl-10 pr-3 py-2.5 rounded-lg bg-white/20 text-white placeholder-white/50 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent"
                     />
                   </div>
+                  {/* Payment status indicator */}
+                  {isPaymentAmountValid() && paymentAmount !== "" && (
+                    <div className="mt-1 text-white/70 text-[10px] font-medium">
+                      {getPaymentStatusText()}
+                    </div>
+                  )}
                 </div>
-                <button
-                  onClick={handleFullPayment}
-                  className="mt-6 px-3 py-2.5 bg-white/20 text-white text-sm font-semibold rounded-lg border border-white/30 hover:bg-white/30 transition-colors duration-200"
-                  title="Set payment to full amount"
-                >
-                  Full
-                </button>
+                <div className="flex flex-col gap-1 mt-6">
+                  <button
+                    onClick={handleFullPayment}
+                    className="px-3 py-2 bg-white/20 text-white text-sm font-semibold rounded-lg border border-white/30 hover:bg-white/30 transition-colors duration-200"
+                    title="Set payment to full amount"
+                  >
+                    Full
+                  </button>
+                  <button
+                    onClick={handleZeroPayment}
+                    className="px-3 py-2 bg-white/20 text-white text-sm font-semibold rounded-lg border border-white/30 hover:bg-white/30 transition-colors duration-200"
+                    title="Set payment to zero (unpaid)"
+                  >
+                    Unpaid
+                  </button>
+                </div>
               </div>
 
               {/* Change Display */}
@@ -405,13 +458,13 @@ export default function Cart() {
                   disabled={
                     isCheckoutDisabled() ||
                     !paymentAmount ||
-                    parseFloat(paymentAmount) <= 0 ||
+                    !isPaymentAmountValid() ||
                     processingPayment
                   }
                   className={`flex-1 py-3 px-4 rounded-xl border-none font-semibold text-sm shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${
                     isCheckoutDisabled() ||
                     !paymentAmount ||
-                    parseFloat(paymentAmount) <= 0 ||
+                    !isPaymentAmountValid() ||
                     processingPayment
                       ? "bg-gray-300 text-gray-500 cursor-not-allowed opacity-70"
                       : "bg-gradient-to-r from-green-500 to-emerald-600 text-white cursor-pointer hover:scale-105 hover:shadow-xl"
@@ -425,7 +478,9 @@ export default function Cart() {
                   ) : (
                     <>
                       <p>Rs</p>
-                      Process Payment
+                      {parseFloat(paymentAmount) === 0
+                        ? "Create Unpaid Order"
+                        : "Process Payment"}
                     </>
                   )}
                 </button>

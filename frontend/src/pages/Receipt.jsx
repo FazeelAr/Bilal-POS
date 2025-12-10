@@ -8,7 +8,6 @@ export default function Receipt() {
   const payload = location.state && location.state.payload;
   const [serverResp, setServerResp] = useState(null);
   const [logoError, setLogoError] = useState(false);
-  const [customerBalance, setCustomerBalance] = useState(null);
 
   useEffect(() => {
     if (!payload) {
@@ -42,7 +41,7 @@ export default function Receipt() {
           left: 0 !important; 
           top: 0 !important; 
           width: 88mm !important; 
-          box-sizing: border-box !important; 
+          box-sizing border-box !important; 
           padding: 2mm 6mm 2mm 6mm !important;
           background: white !important;
           color: black !important;
@@ -87,13 +86,6 @@ export default function Receipt() {
           font-weight: 700 !important;
           text-align: center !important;
           margin: 2px 0 !important;
-          font-family: 'Arial', 'Helvetica', sans-serif !important;
-        }
-        .print-area .balance-info {
-          font-size: 13px !important;
-          font-weight: 900 !important;
-          text-align: center !important;
-          margin: 3px 0 !important;
           font-family: 'Arial', 'Helvetica', sans-serif !important;
         }
         .print-area .date-info { 
@@ -166,11 +158,11 @@ export default function Receipt() {
           border-top: 1px dashed #000 !important;
           margin-top: 3px !important;
         }
-        .print-area .account-balance-row {
-          font-size: 14px !important;
+        .print-area .total-balance-row {
+          font-size: 16px !important;
           font-weight: 900 !important;
-          padding: 2px 0 !important;
-          border-top: 1px dotted #000 !important;
+          padding: 3px 0 !important;
+          border-top: 2px solid #000 !important;
           margin-top: 4px !important;
           padding-top: 4px !important;
         }
@@ -212,15 +204,6 @@ export default function Receipt() {
       }
     })();
 
-    // Get customer balance if customer object is available
-    if (
-      payload.customer &&
-      typeof payload.customer === "object" &&
-      payload.customer.balance !== undefined
-    ) {
-      setCustomerBalance(payload.customer.balance);
-    }
-
     // Auto-print with delay
     const t = setTimeout(() => {
       try {
@@ -256,17 +239,24 @@ export default function Receipt() {
     setLogoError(true);
   };
 
-  // Get customer name
+  // Get customer name and balance
   const customerName =
     customer && typeof customer === "object" ? customer.name : customer;
+  const customerBalance =
+    customer && typeof customer === "object" ? customer.balance : null;
 
-  // Determine customer balance (use from props or state)
-  const currentCustomerBalance =
-    customerBalance !== null
-      ? customerBalance
-      : customer && typeof customer === "object"
-      ? customer.balance
-      : null;
+  // Calculate total balance due (should be customer.balance from backend which already includes current order)
+  // If customer.balance is not available, calculate it
+  let totalBalanceDue = customerBalance;
+
+  if (totalBalanceDue === null || totalBalanceDue === undefined) {
+    // Fallback calculation (should match your backend logic)
+    totalBalanceDue = total; // Current order total
+    if (hasPaymentInfo) {
+      totalBalanceDue -= payment_amount; // Subtract payment
+    }
+    // Note: This doesn't include previous balance, so backend should provide updated balance
+  }
 
   return (
     <div
@@ -343,15 +333,6 @@ export default function Receipt() {
                   <span className="font-semibold">Invoice #:</span>{" "}
                   {serverResp?.id || payload.saleId || "N/A"}
                 </div>
-
-                {/* Customer Account Balance */}
-                {currentCustomerBalance !== null && (
-                  <div
-                    className="balance-info text-center"
-                    style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
-                  ></div>
-                )}
-
                 <div className="divider border-t-2 border-gray-800 my-2 md:my-3"></div>
               </>
             )}
@@ -472,22 +453,20 @@ export default function Receipt() {
                 </>
               )}
 
-              {/* Customer Account Balance */}
-              {currentCustomerBalance !== null && (
-                <div
-                  className="account-balance-row flex justify-between items-center mt-2 pt-2"
-                  style={{
-                    fontFamily: "Arial, Helvetica, sans-serif",
-                    color: currentCustomerBalance >= 0 ? "#16a34a" : "#dc2626",
-                  }}
-                >
-                  <span>BALANCE:</span>
-                  <span>
-                    Rs {Math.abs(currentCustomerBalance).toFixed(2)}
-                    {currentCustomerBalance < 0 && " (Due)"}
-                  </span>
-                </div>
-              )}
+              {/* TOTAL BALANCE DUE (Previous + Current - Payment) */}
+              <div
+                className="total-balance-row flex justify-between items-center"
+                style={{
+                  fontFamily: "Arial, Helvetica, sans-serif",
+                  color: totalBalanceDue >= 0 ? "#16a34a" : "#dc2626",
+                }}
+              >
+                <span>TOTAL BALANCE DUE:</span>
+                <span>
+                  Rs {Math.abs(totalBalanceDue || 0).toFixed(2)}
+                  {totalBalanceDue < 0 && " (Credit)"}
+                </span>
+              </div>
             </div>
 
             <div className="divider border-t-2 border-gray-800 my-2 md:my-3"></div>
@@ -521,20 +500,18 @@ export default function Receipt() {
                     {customerName}
                   </p>
                 )}
-                {currentCustomerBalance !== null && (
-                  <p
-                    className={`text-sm mt-1 ${
-                      currentCustomerBalance >= 0
-                        ? "text-green-800"
-                        : "text-red-800"
-                    }`}
-                  >
-                    <span className="font-semibold">Account Balance:</span> Rs{" "}
-                    {Math.abs(currentCustomerBalance).toFixed(2)}
-                    {currentCustomerBalance < 0 && " (Amount Due)"}
-                    {currentCustomerBalance >= 0 && " (Credit Balance)"}
-                  </p>
-                )}
+                <p
+                  className={`text-sm mt-1 ${
+                    totalBalanceDue >= 0 ? "text-green-800" : "text-red-800"
+                  }`}
+                >
+                  <span className="font-semibold">Total Balance Due:</span> Rs{" "}
+                  {Math.abs(totalBalanceDue || 0).toFixed(2)}
+                  {totalBalanceDue < 0 && " (Credit Balance)"}
+                  {totalBalanceDue >= 0 &&
+                    totalBalanceDue > 0 &&
+                    " (Amount Due)"}
+                </p>
                 {isFullPayment && (
                   <p className="text-sm text-green-800 mt-1">
                     <span className="font-semibold">Status:</span> Fully Paid
