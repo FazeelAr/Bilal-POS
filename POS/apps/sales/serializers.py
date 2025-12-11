@@ -3,7 +3,8 @@ from rest_framework import serializers
 from .models import Client, Order, OrderItem
 from django.db import transaction
 from decimal import Decimal
-
+from apps.pricing.models import Item
+from datetime import date
 
 class ClientSerializer(serializers.ModelSerializer):
     """Serializer for Client model"""
@@ -50,15 +51,13 @@ class OrderCreateSerializer(serializers.Serializer):
     
     @transaction.atomic
     def create(self, validated_data):
-        from apps.pricing.models import Item
-        from datetime import date
         
         customer_id = validated_data['customer']
         items_data = validated_data['items']
         payment_amount = validated_data['payment_amount']
+        payment_status = validated_data['payment_status']
         total_amount = validated_data['total_amount']
         balance_due = validated_data['balance_due']
-        payment_status = validated_data['payment_status']
         
         # Get customer
         try:
@@ -104,7 +103,10 @@ class OrderCreateSerializer(serializers.Serializer):
         order = Order.objects.create(
             client=customer,
             total=order_total,
-            date=date.today()
+            date=date.today(),
+            payment_amount=payment_amount,
+            payment_status=payment_status,
+            balance_due=balance_due
         )
         
         # Create order items
@@ -149,8 +151,12 @@ class OrderSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Order
-        fields = ['id', 'client', 'customer_name', 'total', 'date', 'items']
-        read_only_fields = ['id', 'total', 'date']
+        fields = [
+            'id', 'client', 'customer_name', 'total', 'date', 
+            'payment_amount', 'payment_status', 'balance_due',
+            'items'
+        ]
+        read_only_fields = ['id', 'date']
 
 
 class ReceiptSerializer(serializers.Serializer):

@@ -147,6 +147,9 @@ class OrderViewSet(viewsets.ModelViewSet):
                 'customer_name': order.client.name,
                 'order_date': order.date.strftime('%Y-%m-%d'),
                 'amount': float(order.total),
+                'payment_amount': float(order.payment_amount),  # ADD THIS
+                'payment_status': order.payment_status,  # ADD THIS
+                'balance_due': float(order.balance_due),  # ADD THIS
                 'items_count': order.items.count(),
                 'items': []
             }
@@ -239,9 +242,12 @@ class OrderViewSet(viewsets.ModelViewSet):
                     # Get order details
                     order_data = {
                         'id': order.id,
-                        'customer_name': order.client.name if order.client else 'Unknown',
+                        'customer_name': order.client.name,
                         'order_date': order.date.strftime('%Y-%m-%d'),
                         'amount': float(order.total),
+                        'payment_amount': float(order.payment_amount),  # ADD THIS
+                        'payment_status': order.payment_status,  # ADD THIS
+                        'balance_due': float(order.balance_due),  # ADD THIS
                         'items_count': order.items.count(),
                         'items': []
                     }
@@ -371,11 +377,14 @@ class OrderViewSet(viewsets.ModelViewSet):
                     
                     order_data = {
                         'id': order.id,
-                        'customer_name': order.client.name if order.client else 'Unknown',
+                        'customer_name': order.client.name,
                         'order_date': order.date.strftime('%Y-%m-%d'),
                         'amount': float(order.total),
-                        'items_count': items_count,
-                        'items': items
+                        'payment_amount': float(order.payment_amount),  # ADD THIS
+                        'payment_status': order.payment_status,  # ADD THIS
+                        'balance_due': float(order.balance_due),  # ADD THIS
+                        'items_count': order.items.count(),
+                        'items': []
                     }
                     
                     all_order_details.append(order_data)
@@ -404,9 +413,12 @@ class OrderViewSet(viewsets.ModelViewSet):
                 try:
                     order_data = {
                         'id': order.id,
-                        'customer_name': order.client.name if order.client else 'Unknown',
+                        'customer_name': order.client.name,
                         'order_date': order.date.strftime('%Y-%m-%d'),
                         'amount': float(order.total),
+                        'payment_amount': float(order.payment_amount),  # ADD THIS
+                        'payment_status': order.payment_status,  # ADD THIS
+                        'balance_due': float(order.balance_due),  # ADD THIS
                         'items_count': order.items.count(),
                         'items': []
                     }

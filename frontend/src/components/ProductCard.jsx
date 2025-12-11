@@ -4,80 +4,121 @@ import { Plus, Edit } from "lucide-react";
 export default function ProductCard({ product, onAdd, onEdit }) {
   const [imageError, setImageError] = useState(false);
 
+  // Safely handle product data with defaults
+  const safeProduct = product || {};
+  const productId = safeProduct.productId || "";
+  const productName = safeProduct.name || "Unknown Product";
+  const productPrice = typeof safeProduct.price === 'number' ? safeProduct.price : 0;
+
   // Direct image URL - assuming images are in public/images folder with id.png format
-  const imageUrl = `/images/${product.productId}.png`;
+  const imageUrl = productId ? `/images/${productId}.png` : '/images/default.png';
 
   const handleImageError = () => {
     setImageError(true);
   };
 
   const handleEditClick = (e) => {
-    e.stopPropagation(); // Prevent triggering the main button click
+    e.stopPropagation();
     e.preventDefault();
-    if (onEdit) {
+    if (typeof onEdit === 'function') {
       onEdit();
     }
   };
 
+  const handleCardClick = (e) => {
+    // Only trigger if the click is not on the edit button area
+    if (!e.target.closest('.edit-button')) {
+      e.preventDefault();
+      if (typeof onAdd === 'function') {
+        onAdd();
+      }
+    }
+  };
+
   return (
-    <button
-      onClick={onAdd}
-      className="group relative bg-linear-to-br from-white/95 to-purple-50/95 rounded-2xl shadow-lg overflow-hidden border border-white/30 hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 w-full text-left focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50"
-    >
+    <div className="group relative bg-gradient-to-br from-white/95 to-purple-50/95 rounded-2xl shadow-lg overflow-hidden border border-white/30 hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 w-full">
       {/* Edit Button - positioned absolutely */}
+      {typeof onEdit === 'function' && (
+        <button
+          onClick={handleEditClick}
+          className="edit-button absolute top-2 left-2 z-10 p-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-lg hover:scale-110 active:scale-95 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300"
+          title="Edit Product"
+          type="button"
+          aria-label={`Edit ${productName}`}
+        >
+          <Edit className="w-3.5 h-3.5" />
+        </button>
+      )}
+
+      {/* Clickable card area */}
       <button
-        onClick={handleEditClick}
-        className="absolute top-2 left-2 z-10 p-2 rounded-lg bg-linear-to-r from-blue-500 to-cyan-500 text-white hover:shadow-lg hover:scale-110 active:scale-95 transition-all duration-200"
-        title="Edit Product"
+        onClick={handleCardClick}
+        className="w-full text-left focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled={!onAdd}
+        type="button"
+        aria-label={`Add ${productName} to cart`}
       >
-        <Edit className="w-3.5 h-3.5" />
+        {/* Product Image */}
+        <div className="h-36 bg-gradient-to-br from-purple-100 to-pink-100 relative overflow-hidden">
+          {!imageError ? (
+            <img
+              src={imageUrl}
+              alt={productName}
+              className="w-full h-full object-cover"
+              onError={handleImageError}
+              loading="lazy"
+              onLoad={() => setImageError(false)}
+            />
+          ) : (
+            <div 
+              className="w-full h-full flex items-center justify-center"
+              aria-label={`No image available for ${productName}`}
+            >
+              <div className="text-4xl" role="img" aria-label="Product icon">🥩</div>
+            </div>
+          )}
+
+          {/* Price Tag */}
+          {productPrice > 0 && (
+            <div 
+              className="absolute top-2 right-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg"
+              aria-label={`Price: Rs ${productPrice.toFixed(2)} per kilogram`}
+            >
+              Rs {productPrice.toFixed(2)}/kg
+            </div>
+          )}
+
+          {/* Add Icon Overlay (shown on hover) */}
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-300 flex items-center justify-center">
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/90 rounded-full p-2 shadow-xl">
+              <Plus className="w-5 h-5 text-purple-600" />
+            </div>
+          </div>
+        </div>
+
+        {/* Product Info */}
+        <div className="p-3">
+          <h4 
+            className="font-bold text-gray-800 text-sm mb-2 line-clamp-2 h-10"
+            title={productName}
+          >
+            {productName}
+          </h4>
+
+          {/* Add text hint (replaces the Add button) */}
+          <div className="flex items-center justify-center py-1">
+            <span className="text-xs text-gray-600 font-medium">
+              {typeof onAdd === 'function' ? "Click to add to cart" : "Select a product"}
+            </span>
+          </div>
+        </div>
       </button>
 
-      {/* Product Image */}
-      <div className="h-36 bg-linear-to-br from-purple-100 to-pink-100 relative overflow-hidden">
-        {!imageError ? (
-          <img
-            src={imageUrl}
-            alt={product.name}
-            className="w-full h-full object-cover"
-            onError={handleImageError}
-            loading="lazy"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <div className="text-4xl">🥩</div>
-          </div>
-        )}
-
-        {/* Price Tag */}
-        <div className="absolute top-2 right-2 bg-linear-to-r from-purple-600 to-pink-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg">
-          Rs {product.price.toFixed(2)}/kg
-        </div>
-
-        {/* Add Icon Overlay (shown on hover) */}
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-300 flex items-center justify-center">
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/90 rounded-full p-2 shadow-xl">
-            <Plus className="w-5 h-5 text-purple-600" />
-          </div>
-        </div>
-      </div>
-
-      {/* Product Info */}
-      <div className="p-3">
-        <h4 className="font-bold text-gray-800 text-sm mb-2 line-clamp-2 h-10">
-          {product.name}
-        </h4>
-
-        {/* Add text hint (replaces the Add button) */}
-        <div className="flex items-center justify-center py-1">
-          <span className="text-xs text-gray-600 font-medium">
-            Click to add to cart
-          </span>
-        </div>
-      </div>
-
       {/* Hover Effect Overlay */}
-      <div className="absolute inset-0 bg-linear-to-br from-purple-600/0 to-pink-600/0 group-hover:from-purple-600/10 group-hover:to-pink-600/10 transition-all duration-300 pointer-events-none"></div>
-    </button>
+      <div 
+        className="absolute inset-0 bg-gradient-to-br from-purple-600/0 to-pink-600/0 group-hover:from-purple-600/10 group-hover:to-pink-600/10 transition-all duration-300 pointer-events-none"
+        aria-hidden="true"
+      />
+    </div>
   );
 }

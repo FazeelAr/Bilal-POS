@@ -9,75 +9,114 @@ import {
   Printer,
 } from "lucide-react";
 
+// Helper function for payment status styling
+const getPaymentStatusClass = (status) => {
+  switch (status?.toLowerCase()) {
+    case 'paid':
+      return 'bg-green-100 text-green-800';
+    case 'partial':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'unpaid':
+      return 'bg-red-100 text-red-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
+
 export default function OrderDetailReport({
-  orders,
-  reportType,
+  orders = [],
+  reportType = "daily",
   customerName,
   customerBalance,
   showBalance = true,
 }) {
   const formatCurrency = (amount) => {
+    const numAmount = parseFloat(amount) || 0;
     return new Intl.NumberFormat("en-PK", {
       style: "currency",
       currency: "PKR",
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(amount);
+    }).format(numAmount);
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+    if (!dateString) return "N/A";
+    
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "Invalid Date";
+      
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } catch (error) {
+      console.error("Date formatting error:", error);
+      return "Invalid Date";
+    }
   };
 
-  // Calculate totals
-  const totalAmount = orders.reduce(
-    (sum, order) => sum + (order.amount || 0),
+  // Safely calculate totals
+  const totalAmount = (Array.isArray(orders) ? orders : []).reduce(
+    (sum, order) => sum + (parseFloat(order?.amount) || 0),
     0
   );
-  const totalItems = orders.reduce(
-    (sum, order) => sum + (order.items_count || 0),
+  
+  const totalItems = (Array.isArray(orders) ? orders : []).reduce(
+    (sum, order) => sum + (parseInt(order?.items_count, 10) || 0),
     0
   );
 
   const handlePrintReceipt = (order) => {
-    // Create receipt payload from order data
-    const receiptPayload = {
-      items: (order.items || []).map(item => ({
-        name: item.name || "Product",
-        qty: parseFloat(item.quantity) || 0,
-        price: parseFloat(item.price) || 0,
-        factor: 1,
-        lineTotal: parseFloat(item.total) || 0,
-        productId: item.id || Math.random().toString(36).substr(2, 9)
-      })),
-      total: parseFloat(order.amount) || 0,
-      createdAt: order.order_date || new Date().toISOString(),
-      customer: {
-        name: order.customer_name || customerName || "Customer",
-        balance: customerBalance || 0,
-        starting_balance: customerBalance || 0
-      },
-      payment_amount: parseFloat(order.amount) || 0,
-      payment_status: 'paid',
-      balance_due: 0,
-      saleId: order.id
-    };
+    if (!order) return;
 
-    // Convert payload to base64 to pass in URL
-    const encodedPayload = btoa(encodeURIComponent(JSON.stringify(receiptPayload)));
+    try {
+      const items = Array.isArray(order.items) ? order.items : [];
+      
+      const receiptPayload = {
+        items: items.map(item => ({
+          name: item?.name || "Product",
+          qty: parseFloat(item?.quantity) || 0,
+          price: parseFloat(item?.price) || 0,
+          factor: 1,
+          lineTotal: parseFloat(item?.total) || 0,
+          productId: item?.id || Math.random().toString(36).substring(2, 11)
+        })),
+        total: parseFloat(order.amount) || 0,
+        createdAt: order.order_date || new Date().toISOString(),
+        customer: {
+          name: order.customer_name || customerName || "Customer",
+          balance: parseFloat(customerBalance) || 0,
+          starting_balance: parseFloat(customerBalance) || 0
+        },
+        payment_amount: parseFloat(order.amount) || 0,
+        payment_status: order.payment_status || 'paid',
+        balance_due: 0,
+        saleId: order.id
+      };
 
-    // Open receipt page with data in URL
-    const receiptUrl = `/receipt?print=true&data=${encodedPayload}&orderId=${order.id}`;
-    const receiptWindow = window.open(receiptUrl, '_blank');
+      // Convert payload to base64 to pass in URL
+      const jsonString = JSON.stringify(receiptPayload);
+      const encodedPayload = btoa(encodeURIComponent(jsonString));
 
-    if (receiptWindow) {
-      receiptWindow.focus();
+      // Open receipt page with data in URL
+      const receiptUrl = `/receipt?print=true&data=${encodedPayload}&orderId=${order.id}`;
+      const receiptWindow = window.open(receiptUrl, '_blank', 'noopener,noreferrer');
+
+      if (receiptWindow) {
+        receiptWindow.focus();
+      }
+    } catch (error) {
+      console.error("Error generating receipt:", error);
+      alert("Failed to generate receipt. Please try again.");
     }
   };
+
+  const safeOrders = Array.isArray(orders) ? orders : [];
+  const hasOrders = safeOrders.length > 0;
+  const hasItems = safeOrders.some(order => Array.isArray(order?.items) && order.items.length > 0);
 
   return (
     <div className="space-y-6">
@@ -101,59 +140,56 @@ export default function OrderDetailReport({
           </div>
         </div>
         <div className="text-sm text-gray-600">
-          {orders.length} {orders.length === 1 ? "order" : "orders"}
+          {safeOrders.length} {safeOrders.length === 1 ? "order" : "orders"}
         </div>
       </div>
 
       {/* Customer Balance Card */}
-      {showBalance &&
-        customerBalance !== undefined &&
-        customerBalance !== null && (
-          <div className="bg-linear-to-r from-blue-50 to-cyan-50 rounded-xl p-5 border border-blue-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <CreditCard className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-600">
-                    Customer Balance
-                  </p>
-                  <p
-                    className={`text-2xl font-bold ${customerBalance > 0 ? "text-red-600" : "text-green-600"
-                      }`}
-                  >
-                    {formatCurrency(customerBalance)}
-                  </p>
-                </div>
+      {showBalance && customerBalance !== undefined && customerBalance !== null && (
+        <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-5 border border-blue-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <CreditCard className="w-5 h-5 text-blue-600" />
               </div>
-              <div className="text-right">
+              <div>
                 <p className="text-sm font-medium text-gray-600">
-                  Total Orders Amount
+                  Customer Balance
                 </p>
-                <p className="text-xl font-bold text-gray-800">
-                  {formatCurrency(totalAmount)}
+                <p
+                  className={`text-2xl font-bold ${parseFloat(customerBalance) > 0 ? "text-red-600" : "text-green-600"}`}
+                >
+                  {formatCurrency(customerBalance)}
                 </p>
               </div>
             </div>
+            <div className="text-right">
+              <p className="text-sm font-medium text-gray-600">
+                Total Orders Amount
+              </p>
+              <p className="text-xl font-bold text-gray-800">
+                {formatCurrency(totalAmount)}
+              </p>
+            </div>
           </div>
-        )}
+        </div>
+      )}
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-linear-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
+        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
           <p className="text-sm font-medium text-gray-600 mb-2">Total Orders</p>
-          <p className="text-2xl font-bold text-gray-800">{orders.length}</p>
+          <p className="text-2xl font-bold text-gray-800">{safeOrders.length}</p>
         </div>
 
-        <div className="bg-linear-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
+        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
           <p className="text-sm font-medium text-gray-600 mb-2">Total Amount</p>
-          <p className="text-2xl font-bold bg-linear-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+          <p className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
             {formatCurrency(totalAmount)}
           </p>
         </div>
 
-        <div className="bg-linear-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
+        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
           <p className="text-sm font-medium text-gray-600 mb-2">Total Items</p>
           <p className="text-2xl font-bold text-blue-600">{totalItems}</p>
         </div>
@@ -161,168 +197,207 @@ export default function OrderDetailReport({
 
       {/* Orders Table */}
       <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b-2 border-purple-100">
-              <th className="py-4 px-6 text-left text-sm font-bold text-gray-700">
-                <Hash className="w-4 h-4 inline mr-2" />
-                Order ID
-              </th>
-              <th className="py-4 px-6 text-left text-sm font-bold text-gray-700">
-                <User className="w-4 h-4 inline mr-2" />
-                Customer
-              </th>
-              <th className="py-4 px-6 text-left text-sm font-bold text-gray-700">
-                <Calendar className="w-4 h-4 inline mr-2" />
-                Date
-              </th>
-              <th className="py-4 px-6 text-left text-sm font-bold text-gray-700">
-                <Package className="w-4 h-4 inline mr-2" />
-                Items
-              </th>
-              <th className="py-4 px-6 text-left text-sm font-bold text-gray-700">
-                <span>Rs</span>
-                Amount
-              </th>
-              <th className="py-4 px-6 text-left text-sm font-bold text-gray-700">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {orders.map((order) => (
-              <tr
-                key={order.id}
-                className="border-b border-gray-100 hover:bg-linear-to-r hover:from-purple-50 hover:to-pink-50 transition-colors"
-              >
-                <td className="py-4 px-6">
-                  <span className="font-mono font-semibold text-gray-800">
-                    #{order.id}
-                  </span>
-                </td>
-                <td className="py-4 px-6">
-                  <span className="font-medium text-gray-800">
-                    {order.customer_name}
-                  </span>
-                </td>
-                <td className="py-4 px-6">
-                  <span className="text-gray-700">
-                    {formatDate(order.order_date)}
-                  </span>
-                </td>
-                <td className="py-4 px-6">
-                  <div className="flex flex-col">
-                    <span className="font-medium">
-                      {order.items_count || 0} items
-                    </span>
-                    <div className="text-xs text-gray-500 mt-1 max-w-xs truncate">
-                      {order.items &&
-                        order.items.slice(0, 2).map((item, idx) => (
-                          <span key={idx}>
-                            {item.name} ({item.quantity} ×{" "}
-                            {formatCurrency(item.price)})
-                            {idx < Math.min(order.items.length - 1, 1) ? ", " : ""}
-                          </span>
-                        ))}
-                      {order.items && order.items.length > 2 && (
-                        <span>... and {order.items.length - 2} more</span>
-                      )}
-                    </div>
-                  </div>
-                </td>
-                <td className="py-4 px-6">
-                  <span className="font-bold text-gray-900">
-                    {formatCurrency(order.amount)}
-                  </span>
-                </td>
-                <td className="py-4 px-6">
-                  <button
-                    onClick={() => handlePrintReceipt(order)}
-                    className="px-3 py-1.5 bg-linear-to-r from-blue-500 to-cyan-500 text-white rounded-lg text-sm font-medium hover:from-blue-600 hover:to-cyan-600 transition-colors flex items-center gap-1 shadow-sm hover:shadow"
-                    title="Print Receipt"
+        {hasOrders ? (
+          <table className="w-full">
+            <thead>
+              <tr className="border-b-2 border-purple-100">
+                <th className="py-4 px-6 text-left text-sm font-bold text-gray-700">
+                  <Hash className="w-4 h-4 inline mr-2" />
+                  Order ID
+                </th>
+                <th className="py-4 px-6 text-left text-sm font-bold text-gray-700">
+                  <User className="w-4 h-4 inline mr-2" />
+                  Customer
+                </th>
+                <th className="py-4 px-6 text-left text-sm font-bold text-gray-700">
+                  <Calendar className="w-4 h-4 inline mr-2" />
+                  Date
+                </th>
+                <th className="py-4 px-6 text-left text-sm font-bold text-gray-700">
+                  <Package className="w-4 h-4 inline mr-2" />
+                  Items
+                </th>
+                <th className="py-4 px-6 text-left text-sm font-bold text-gray-700">
+                  Amount
+                </th>
+                <th className="py-4 px-6 text-left text-sm font-bold text-gray-700">
+                  Paid
+                </th>
+                <th className="py-4 px-6 text-left text-sm font-bold text-gray-700">
+                  Balance Due
+                </th>
+                <th className="py-4 px-6 text-left text-sm font-bold text-gray-700">
+                  Status
+                </th>
+                <th className="py-4 px-6 text-left text-sm font-bold text-gray-700">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {safeOrders.map((order) => {
+                const orderId = order?.id || `order-${Math.random()}`;
+                const items = Array.isArray(order?.items) ? order.items : [];
+                
+                return (
+                  <tr
+                    key={orderId}
+                    className="border-b border-gray-100 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 transition-colors"
                   >
-                    <Printer className="w-4 h-4" />
-                    Print
-                  </button>
+                    <td className="py-4 px-6">
+                      <span className="font-mono font-semibold text-gray-800">
+                        #{orderId}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="font-medium text-gray-800">
+                        {order?.customer_name || "N/A"}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="text-gray-700">
+                        {formatDate(order?.order_date)}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex flex-col">
+                        <span className="font-medium">
+                          {(order?.items_count || items.length || 0)} items
+                        </span>
+                        {items.length > 0 && (
+                          <div className="text-xs text-gray-500 mt-1 max-w-xs truncate">
+                            {items.slice(0, 2).map((item, idx) => (
+                              <span key={idx}>
+                                {item?.name || "Item"} ({item?.quantity || 0} ×{" "}
+                                {formatCurrency(item?.price)})
+                                {idx < Math.min(items.length - 1, 1) ? ", " : ""}
+                              </span>
+                            ))}
+                            {items.length > 2 && (
+                              <span>... and {items.length - 2} more</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="font-bold text-gray-900">
+                        {formatCurrency(order?.amount)}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="font-semibold text-green-600">
+                        {formatCurrency(order?.payment_amount || 0)}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className={`font-semibold ${(parseFloat(order?.balance_due) || 0) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {formatCurrency(order?.balance_due || 0)}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className={`px-2 py-1 rounded text-xs ${getPaymentStatusClass(order?.payment_status)}`}>
+                        {order?.payment_status || 'paid'}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <button
+                        onClick={() => handlePrintReceipt(order)}
+                        className="px-3 py-1.5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg text-sm font-medium hover:from-blue-600 hover:to-cyan-600 transition-colors flex items-center gap-1 shadow-sm hover:shadow focus:outline-none focus:ring-2 focus:ring-blue-300"
+                        title="Print Receipt"
+                        type="button"
+                      >
+                        <Printer className="w-4 h-4" />
+                        Print
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="bg-gradient-to-r from-purple-50 to-pink-50 border-t-2 border-purple-200">
+                <td
+                  colSpan="4"
+                  className="py-5 px-6 text-lg font-bold text-gray-900"
+                >
+                  Total ({safeOrders.length} orders)
+                </td>
+                <td className="py-5 px-6" colSpan="5">
+                  <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                    {formatCurrency(totalAmount)}
+                  </span>
                 </td>
               </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="bg-linear-to-r from-purple-50 to-pink-50 border-t-2 border-purple-200">
-              <td
-                colSpan="5"
-                className="py-5 px-6 text-lg font-bold text-gray-900"
-              >
-                Total ({orders.length} orders)
-              </td>
-              <td className="py-5 px-6">
-                <span className="text-2xl font-bold bg-linear-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  {formatCurrency(totalAmount)}
-                </span>
-              </td>
-              <td></td>
-            </tr>
-          </tfoot>
-        </table>
+            </tfoot>
+          </table>
+        ) : (
+          <div className="text-center py-12 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border border-purple-100">
+            <ShoppingBag className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">No orders found</h3>
+            <p className="text-gray-500">No orders match the selected criteria.</p>
+          </div>
+        )}
       </div>
 
       {/* Order Items Details */}
-      {orders.some((order) => order.items && order.items.length > 0) && (
+      {hasItems && (
         <div className="mt-8">
           <h4 className="text-lg font-semibold text-gray-800 mb-4">
             Order Items Details
           </h4>
           <div className="space-y-4">
-            {orders.map(
-              (order) =>
-                order.items &&
-                order.items.length > 0 && (
-                  <div key={order.id} className="bg-gray-50 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <span className="font-semibold">Order #{order.id}</span>
-                        <span className="text-sm text-gray-500 ml-3">
-                          {formatDate(order.order_date)}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-gray-900">
-                          {formatCurrency(order.amount)}
-                        </span>
-                        <button
-                          onClick={() => handlePrintReceipt(order)}
-                          className="ml-2 px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm font-medium hover:bg-blue-200 transition-colors flex items-center gap-1"
-                          title="Print Receipt"
-                        >
-                          <Printer className="w-3 h-3" />
-                          Print
-                        </button>
-                      </div>
+            {safeOrders.map((order) => {
+              const items = Array.isArray(order?.items) ? order.items : [];
+              if (items.length === 0) return null;
+              
+              return (
+                <div key={order?.id || `details-${Math.random()}`} className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <span className="font-semibold">Order #{order?.id}</span>
+                      <span className="text-sm text-gray-500 ml-3">
+                        {formatDate(order?.order_date)}
+                      </span>
                     </div>
-                    <div className="space-y-2">
-                      {order.items.map((item, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between py-2 border-b border-gray-200 last:border-0"
-                        >
-                          <div className="flex-1">
-                            <span className="font-medium">{item.name}</span>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <span className="text-gray-600">
-                              {item.quantity} × {formatCurrency(item.price)}
-                            </span>
-                            <span className="font-semibold">
-                              {formatCurrency(item.total)}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-gray-900">
+                        {formatCurrency(order?.amount)}
+                      </span>
+                      <button
+                        onClick={() => handlePrintReceipt(order)}
+                        className="ml-2 px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm font-medium hover:bg-blue-200 transition-colors flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                        title="Print Receipt"
+                        type="button"
+                      >
+                        <Printer className="w-3 h-3" />
+                        Print
+                      </button>
                     </div>
                   </div>
-                )
-            )}
+                  <div className="space-y-2">
+                    {items.map((item, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between py-2 border-b border-gray-200 last:border-0"
+                      >
+                        <div className="flex-1">
+                          <span className="font-medium">{item?.name || "Item"}</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <span className="text-gray-600">
+                            {item?.quantity || 0} × {formatCurrency(item?.price || 0)}
+                          </span>
+                          <span className="font-semibold">
+                            {formatCurrency(item?.total || 0)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

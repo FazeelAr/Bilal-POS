@@ -15,7 +15,6 @@ class Client(models.Model):
 
 
 class Order(models.Model):
-    """Order model to store order information"""
     id = models.AutoField(primary_key=True)
     client = models.ForeignKey(
         Client,
@@ -25,6 +24,11 @@ class Order(models.Model):
     )
     total = models.DecimalField(max_digits=10, decimal_places=2)
     date = models.DateField(auto_now_add=True)
+    
+    # ADD THESE 3 FIELDS:
+    payment_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    payment_status = models.CharField(max_length=20, default='unpaid')
+    balance_due = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     class Meta:
         db_table = 'order'

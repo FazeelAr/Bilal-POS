@@ -6,6 +6,8 @@ import CartContext from "./CartContext";
 export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
   const [currentCustomer, setCurrentCustomer] = useState(null);
+  const [paymentAmount, setPaymentAmount] = useState(0);
+  const [paymentStatus, setPaymentStatus] = useState("paid");
   const navigate = useNavigate();
 
   const addToCart = (product) => {
@@ -96,15 +98,24 @@ export function CartProvider({ children }) {
       price: (Number(it.price) || 0) * (Number(it.factor) || 1),
     }));
 
+    const paymentAmt = paymentAmount || grandTotal;
+    const balanceDue = grandTotal - paymentAmt;
+    const paymentStat = balanceDue > 0 ? "partial" : "paid";
+
     const payload = {
-      items,
       customer: currentCustomer.id,
+      items: items,
+      payment_amount: paymentAmt,
+      payment_method: "cash", // Required field
+      payment_status: paymentStat,
+      total_amount: grandTotal,
+      balance_due: balanceDue
     };
 
     let backendOrder = null;
 
     try {
-      const res = await apiPost("sales/orders/create/", payload);
+      const res = await apiPost("sales/orders/", payload);
       backendOrder = res.data;
     } catch (err) {
       console.error("Checkout failed", err);
@@ -161,6 +172,10 @@ export function CartProvider({ children }) {
         grandTotal,
         isCheckoutDisabled,
         handleCheckout,
+        paymentAmount,
+        setPaymentAmount,
+        paymentStatus,
+        setPaymentStatus
       }}
     >
       {children}

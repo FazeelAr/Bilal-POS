@@ -314,39 +314,45 @@ export default function Receipt() {
 
   // Customer's previous balance (before this transaction)
   const previousBalance = customer && typeof customer === "object"
-    ? customer.starting_balance || customer.balance || 0
+    ? parseFloat(customer.starting_balance || customer.balance || 0)
     : 0;
 
   const handleLogoError = () => {
     setLogoError(true);
   };
 
-  // Calculate updated balance
-  const currentBillAmount = total || 0;
-  const paymentMade = payment_amount || 0;
+  // ====== FIXED CALCULATION LOGIC WITH NULL CHECKS ======
+  // Safely parse all values to numbers with defaults
+  const currentBillAmount = parseFloat(total) || 0;
+  const paymentMade = parseFloat(payment_amount) || 0;
+  
+  // Calculate this bill's unpaid portion (ensure it's never negative)
+  const thisBillUnpaid = Math.max(0, currentBillAmount - paymentMade);
+  
+  // Calculate updated balance: Previous Balance + Unpaid portion of current bill
+  let updatedBalance = previousBalance + thisBillUnpaid;
 
-  // Calculate updated balance based on payment scenario
-  let updatedBalance = previousBalance; // Default to previous balance
-
-  if (paymentMade !== undefined && paymentMade !== null) {
-    if (paymentMade < currentBillAmount) {
-      // Partial payment: add unpaid portion to balance
-      updatedBalance = previousBalance + (currentBillAmount - paymentMade);
-    } else if (paymentMade > (previousBalance + currentBillAmount)) {
-      // Overpayment: create credit (negative balance)
-      updatedBalance = previousBalance + currentBillAmount - paymentMade;
-    } else if (paymentMade === currentBillAmount) {
-      // Exact payment for current bill only: previous balance remains unchanged
-      updatedBalance = previousBalance;
-    } else if (paymentMade > currentBillAmount && paymentMade <= (previousBalance + currentBillAmount)) {
-      // Payment covers some or all of previous balance
-      const remainingAfterBill = paymentMade - currentBillAmount;
-      updatedBalance = previousBalance - remainingAfterBill;
-    }
-  } else {
-    // No payment made: add current bill to balance
-    updatedBalance = previousBalance + currentBillAmount;
+  // Special handling for overpayment (credit)
+  const totalDebtBefore = previousBalance + currentBillAmount;
+  if (paymentMade > totalDebtBefore) {
+    updatedBalance = previousBalance + currentBillAmount - paymentMade; // Negative = credit
   }
+
+  // This order's balance due (unpaid portion of current bill only)
+  const thisOrderBalanceDue = thisBillUnpaid;
+
+  // Ensure updatedBalance is a valid number
+  if (isNaN(updatedBalance)) {
+    console.error("Invalid updated balance calculation:", {
+      previousBalance,
+      currentBillAmount,
+      paymentMade,
+      thisBillUnpaid,
+      totalDebtBefore
+    });
+    updatedBalance = previousBalance + currentBillAmount; // Fallback to simple addition
+  }
+  // ====== END FIXED CALCULATION ======
 
   return (
     <div
@@ -506,13 +512,13 @@ export default function Receipt() {
                       className="py-1.5 text-right align-top"
                       style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
                     >
-                      {Number((it.price || 0) * (it.factor || 1)).toFixed(2)}
+                      {Number((parseFloat(it.price) || 0) * (parseFloat(it.factor) || 1)).toFixed(2)}
                     </td>
                     <td
                       className="py-1.5 text-right align-top font-semibold"
                       style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
                     >
-                      {Number(it.lineTotal || 0).toFixed(2)}
+                      {Number(parseFloat(it.lineTotal) || 0).toFixed(2)}
                     </td>
                   </tr>
                 ))}
@@ -527,7 +533,7 @@ export default function Receipt() {
                 style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
               >
                 <span>CURRENT BILL:</span>
-                <span>Rs {Number(currentBillAmount || 0).toFixed(2)}</span>
+                <span>Rs {currentBillAmount.toFixed(2)}</span>
               </div>
 
               {/* Previous Balance */}
@@ -537,7 +543,7 @@ export default function Receipt() {
                   style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
                 >
                   <span>PREVIOUS BALANCE:</span>
-                  <span>Rs {Number(previousBalance || 0).toFixed(2)}</span>
+                  <span>Rs {previousBalance.toFixed(2)}</span>
                 </div>
               )}
 
@@ -549,23 +555,23 @@ export default function Receipt() {
                     style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
                   >
                     <span>PAID TODAY:</span>
-                    <span>Rs {Number(paymentMade || 0).toFixed(2)}</span>
+                    <span>Rs {paymentMade.toFixed(2)}</span>
                   </div>
 
                   {/* Current Order Balance Due (if partial payment) */}
-                  {balance_due > 0 && (
+                  {thisOrderBalanceDue > 0 && (
                     <div
                       className="balance-row flex justify-between items-center text-yellow-700 mt-1"
                       style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
                     >
                       <span>THIS BILL BALANCE:</span>
-                      <span>Rs {Number(balance_due).toFixed(2)}</span>
+                      <span>Rs {thisOrderBalanceDue.toFixed(2)}</span>
                     </div>
                   )}
                 </>
               )}
 
-              {/* UPDATED TOTAL BALANCE */}
+              {/* UPDATED TOTAL BALANCE - FIXED */}
               <div
                 className="total-balance-row flex justify-between items-center mt-2"
                 style={{

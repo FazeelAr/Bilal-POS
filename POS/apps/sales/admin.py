@@ -1,63 +1,61 @@
 from django.contrib import admin
 from .models import Client, Order, OrderItem
 
-
-class OrderItemInline(admin.TabularInline):
-    """Inline admin for order items"""
-    model = OrderItem
-    extra = 1
-    fields = ('item', 'quantity', 'price')
-    autocomplete_fields = ['item']
-
-
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
-    """Admin interface for Client model"""
-    list_display = ('id', 'name', 'balance')
-    search_fields = ('id', 'name')
-    list_filter = ('balance',)
-    ordering = ('name',)
+    list_display = ['id', 'name', 'balance']
+    list_filter = ['name']
+    search_fields = ['name']
+    ordering = ['name']
 
+class OrderItemInline(admin.TabularInline):
+    model = OrderItem
+    extra = 1
+    fields = ['item', 'quantity', 'price']
+    readonly_fields = ['total_price']
+    
+    def total_price(self, obj):
+        if obj.id:
+            return f"Rs {obj.quantity * obj.price:.2f}"
+        return "-"
+    total_price.short_description = 'Total'
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    """Admin interface for Order model"""
-    list_display = ('id', 'client', 'total', 'date')
-    list_filter = ('date',)
-    search_fields = ('id', 'client__name')
+    list_display = ['id', 'client', 'total', 'payment_amount', 'payment_status', 'balance_due', 'date', 'item_count']
+    list_filter = ['date', 'payment_status', 'client']
+    search_fields = ['client__name', 'id']
     date_hierarchy = 'date'
-    autocomplete_fields = ['client']
-    readonly_fields = ('date', 'total')  # Make both date and total read-only
+    ordering = ['-date', '-id']
+    
+    # Show OrderItems inline
     inlines = [OrderItemInline]
     
-    # Simplified fieldsets without 'id'
+    # Custom method to show item count
+    def item_count(self, obj):
+        return obj.items.count()
+    item_count.short_description = 'Items'
+    
     fieldsets = (
         ('Order Information', {
-            'fields': ('client',)
+            'fields': ('client', 'total', 'date')
         }),
-        ('Financial', {
-            'fields': ('total',)
+        ('Payment Information', {
+            'fields': ('payment_amount', 'payment_status', 'balance_due'),
         }),
     )
-    
-    def get_readonly_fields(self, request, obj=None):
-        """Make additional fields read-only when editing"""
-        readonly_fields = super().get_readonly_fields(request, obj)
-        if obj:  # If editing an existing object
-            # Add client to readonly fields when editing
-            readonly_fields = list(readonly_fields) + ['client']
-        return readonly_fields
-
 
 @admin.register(OrderItem)
 class OrderItemAdmin(admin.ModelAdmin):
-    """Admin interface for OrderItem model"""
-    list_display = ('id', 'order', 'item', 'quantity', 'price', 'get_line_total')
-    list_filter = ('order__date',)
-    search_fields = ('order__id', 'item__name')
-    autocomplete_fields = ['order', 'item']
+    list_display = ['id', 'order', 'item', 'quantity', 'price', 'total_price']
+    list_filter = ['order__date', 'item']
+    search_fields = ['item__name', 'order__id']
     
-    def get_line_total(self, obj):
-        """Calculate line total"""
+    def total_price(self, obj):
         return obj.quantity * obj.price
-    get_line_total.short_description = 'Line Total'
+    total_price.short_description = 'Total'
+
+# Optional: If you want to customize the admin site header
+admin.site.site_header = "Bilal Poultry Traders Admin"
+admin.site.site_title = "Sales Administration"
+admin.site.index_title = "Welcome to Sales Admin"
