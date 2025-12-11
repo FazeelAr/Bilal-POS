@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
@@ -5,14 +6,134 @@ from rest_framework.permissions import IsAuthenticated
 from django.db.models import Sum, Count
 from django.db.models.functions import TruncDate, TruncMonth
 from datetime import datetime, date
-from .models import Client, Order, OrderItem
+from django.db import transaction
+from django.shortcuts import get_object_or_404
+
+from .models import Client, Order, OrderItem, Receipt, ReceiptItem
 from .serializers import (
     ClientSerializer,
     OrderSerializer,
     OrderCreateSerializer,
-    ReceiptSerializer
+    ReceiptSerializer,
+    ReceiptCreateSerializer,
+    ReceiptReprintSerializer
 )
 
+
+class ReceiptViewSet(viewsets.ModelViewSet):
+    """ViewSet for Receipt model"""
+    queryset = Receipt.objects.all().select_related('order', 'customer').prefetch_related('items')
+    serializer_class = ReceiptSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Filter receipts based on query parameters"""
+        queryset = super().get_queryset()
+        
+        # Filter by customer
+        customer_id = self.request.query_params.get('customer_id')
+        if customer_id:
+            queryset = queryset.filter(customer_id=customer_id)
+        
+        # Filter by order
+        order_id = self.request.query_params.get('order')
+        if order_id:
+            queryset = queryset.filter(order_id=order_id)
+        
+        # Filter by date range
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+        if start_date and end_date:
+            queryset = queryset.filter(receipt_date__range=[start_date, end_date])
+        
+        # Filter by receipt number
+        receipt_number = self.request.query_params.get('receipt_number')
+        if receipt_number:
+            queryset = queryset.filter(receipt_number__icontains=receipt_number)
+        
+        return queryset
+    
+    @action(detail=True, methods=['post'], url_path='reprint')
+    def reprint(self, request, pk=None):
+        """Increment reprint count for a receipt"""
+        try:
+            receipt = self.get_object()
+            receipt.reprint_count += 1
+            receipt.last_reprinted_at = timezone.now()
+            receipt.save()
+            
+            return Response({
+                'message': 'Receipt reprinted successfully',
+                'reprint_count': receipt.reprint_count,
+                'last_reprinted_at': receipt.last_reprinted_at
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            print(f"Error in reprint: {e}")
+            import traceback
+            traceback.print_exc()
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=False, methods=['get'], url_path='by-order/(?P<order_id>\d+)')
+    def by_order(self, request, order_id=None):
+        """Get receipt for a specific order"""
+        try:
+            # Try to get receipt by order ID
+            receipt = Receipt.objects.get(order_id=order_id)
+            serializer = self.get_serializer(receipt)
+            return Response(serializer.data)
+        except Receipt.DoesNotExist:
+            return Response(
+                {'error': 'Receipt not found for this order'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            print(f"Error in by_order: {e}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['get'], url_path='by-customer/(?P<customer_id>\d+)')
+    def by_customer(self, request, customer_id=None):
+        """Get all receipts for a specific customer"""
+        try:
+            customer = Client.objects.get(id=customer_id)
+        except Client.DoesNotExist:
+            return Response(
+                {'error': 'Customer not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        receipts = self.get_queryset().filter(customer=customer)
+        page = self.paginate_queryset(receipts)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(receipts, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['post'], url_path='create-from-order')
+    def create_from_order(self, request):
+        """Create a receipt from order data"""
+        serializer = ReceiptCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                receipt = serializer.save()
+                return Response(ReceiptSerializer(receipt).data, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                print(f"Error creating receipt: {e}")
+                return Response(
+                    {'error': str(e)}, 
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
 
 class ClientViewSet(viewsets.ModelViewSet):
     """ViewSet for Client (Customer) operations"""
@@ -86,16 +207,45 @@ class OrderViewSet(viewsets.ModelViewSet):
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
     
+    def get_queryset(self):
+        """Filter orders based on query parameters"""
+        queryset = super().get_queryset()
+        
+        # Filter by customer
+        customer_id = self.request.query_params.get('customer')
+        if customer_id:
+            queryset = queryset.filter(client_id=customer_id)
+        
+        # Filter by date range
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+        if start_date and end_date:
+            queryset = queryset.filter(date__range=[start_date, end_date])
+        
+        # Filter by payment status
+        payment_status = self.request.query_params.get('payment_status')
+        if payment_status:
+            queryset = queryset.filter(payment_status=payment_status)
+        
+        return queryset
+    
     @action(detail=False, methods=['post'], url_path='create')
     def create_order(self, request):
         """Create a new order with items"""
         serializer = OrderCreateSerializer(data=request.data)
         if serializer.is_valid():
-            order = serializer.save()
-            return Response(
-                OrderSerializer(order).data,
-                status=status.HTTP_201_CREATED
-            )
+            try:
+                order = serializer.save()
+                return Response(
+                    OrderSerializer(order).data,
+                    status=status.HTTP_201_CREATED
+                )
+            except Exception as e:
+                print(f"Error creating order: {e}")
+                return Response(
+                    {'error': str(e)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     @action(detail=False, methods=['get'], url_path='reports/daily')
@@ -136,8 +286,10 @@ class OrderViewSet(viewsets.ModelViewSet):
             except Client.DoesNotExist:
                 customer_filter = f"Customer ID: {customer_id}"
         
-        # Calculate total
+        # Calculate totals
         total_sales = orders.aggregate(total=Sum('total'))['total'] or 0
+        total_paid = orders.aggregate(total=Sum('payment_amount'))['total'] or 0
+        total_due = orders.aggregate(total=Sum('balance_due'))['total'] or 0
         
         # Get order details
         order_details = []
@@ -147,9 +299,9 @@ class OrderViewSet(viewsets.ModelViewSet):
                 'customer_name': order.client.name,
                 'order_date': order.date.strftime('%Y-%m-%d'),
                 'amount': float(order.total),
-                'payment_amount': float(order.payment_amount),  # ADD THIS
-                'payment_status': order.payment_status,  # ADD THIS
-                'balance_due': float(order.balance_due),  # ADD THIS
+                'payment_amount': float(order.payment_amount),
+                'payment_status': order.payment_status,
+                'balance_due': float(order.balance_due),
                 'items_count': order.items.count(),
                 'items': []
             }
@@ -168,6 +320,8 @@ class OrderViewSet(viewsets.ModelViewSet):
         return Response({
             'date': report_date.strftime('%Y-%m-%d'),
             'total_sales': float(total_sales),
+            'total_paid': float(total_paid),
+            'total_due': float(total_due),
             'order_count': orders.count(),
             'customer_filter': customer_filter,
             'customer_balance': customer_balance,
@@ -245,9 +399,9 @@ class OrderViewSet(viewsets.ModelViewSet):
                         'customer_name': order.client.name,
                         'order_date': order.date.strftime('%Y-%m-%d'),
                         'amount': float(order.total),
-                        'payment_amount': float(order.payment_amount),  # ADD THIS
-                        'payment_status': order.payment_status,  # ADD THIS
-                        'balance_due': float(order.balance_due),  # ADD THIS
+                        'payment_amount': float(order.payment_amount),
+                        'payment_status': order.payment_status,
+                        'balance_due': float(order.balance_due),
                         'items_count': order.items.count(),
                         'items': []
                     }
@@ -346,27 +500,40 @@ class OrderViewSet(viewsets.ModelViewSet):
                 except Client.DoesNotExist:
                     customer_filter = f"Customer ID: {customer_id}"
             
-            # Calculate overall total
-            total_sales_result = orders.aggregate(total=Sum('total'))
-            total_sales = total_sales_result['total'] or 0
+            # Calculate overall totals
+            totals = orders.aggregate(
+                total_sales=Sum('total'),
+                total_paid=Sum('payment_amount'),
+                total_due=Sum('balance_due')
+            )
+            
+            total_sales = totals['total_sales'] or 0
+            total_paid = totals['total_paid'] or 0
+            total_due = totals['total_due'] or 0
             
             # Get order count
             order_count = orders.count()
             
             # Get all order details for the range
             all_order_details = []
-            # Use iterator() to avoid memory issues with large datasets
             for order in orders.select_related('client').iterator():
                 try:
-                    # Get order items
-                    items = []
-                    items_count = 0
-                    # Try to get items, but don't crash if there's an issue
+                    order_data = {
+                        'id': order.id,
+                        'customer_name': order.client.name,
+                        'order_date': order.date.strftime('%Y-%m-%d'),
+                        'amount': float(order.total),
+                        'payment_amount': float(order.payment_amount),
+                        'payment_status': order.payment_status,
+                        'balance_due': float(order.balance_due),
+                        'items_count': order.items.count(),
+                        'items': []
+                    }
+                    
+                    # Get items
                     try:
-                        order_items = order.items.all()
-                        items_count = order_items.count()
-                        for order_item in order_items.select_related('item'):
-                            items.append({
+                        for order_item in order.items.all().select_related('item'):
+                            order_data['items'].append({
                                 'name': order_item.item.name if order_item.item else 'Unknown',
                                 'quantity': float(order_item.quantity),
                                 'price': float(order_item.price),
@@ -375,27 +542,13 @@ class OrderViewSet(viewsets.ModelViewSet):
                     except Exception as e:
                         print(f"Error getting items for order {order.id}: {e}")
                     
-                    order_data = {
-                        'id': order.id,
-                        'customer_name': order.client.name,
-                        'order_date': order.date.strftime('%Y-%m-%d'),
-                        'amount': float(order.total),
-                        'payment_amount': float(order.payment_amount),  # ADD THIS
-                        'payment_status': order.payment_status,  # ADD THIS
-                        'balance_due': float(order.balance_due),  # ADD THIS
-                        'items_count': order.items.count(),
-                        'items': []
-                    }
-                    
                     all_order_details.append(order_data)
                 except Exception as e:
                     print(f"Error processing order {order.id}: {e}")
                     continue
             
-            # Create daily breakdown manually instead of using TruncDate
+            # Create daily breakdown
             daily_breakdown = []
-            
-            # Create a dictionary to aggregate daily sales
             daily_sales = {}
             daily_orders = {}
             
@@ -416,14 +569,14 @@ class OrderViewSet(viewsets.ModelViewSet):
                         'customer_name': order.client.name,
                         'order_date': order.date.strftime('%Y-%m-%d'),
                         'amount': float(order.total),
-                        'payment_amount': float(order.payment_amount),  # ADD THIS
-                        'payment_status': order.payment_status,  # ADD THIS
-                        'balance_due': float(order.balance_due),  # ADD THIS
+                        'payment_amount': float(order.payment_amount),
+                        'payment_status': order.payment_status,
+                        'balance_due': float(order.balance_due),
                         'items_count': order.items.count(),
                         'items': []
                     }
                     
-                    for order_item in order.items.all():
+                    for order_item in order.items.all().select_related('item'):
                         order_data['items'].append({
                             'name': order_item.item.name if order_item.item else 'Unknown',
                             'quantity': float(order_item.quantity),
@@ -439,7 +592,6 @@ class OrderViewSet(viewsets.ModelViewSet):
             
             # Convert to list format
             for date_str, sales in daily_sales.items():
-                # Count orders for this day
                 day_order_count = len(daily_orders[date_str]) if date_str in daily_orders else 0
                 
                 daily_breakdown.append({
@@ -456,6 +608,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                 'start_date': start.strftime('%Y-%m-%d'),
                 'end_date': end.strftime('%Y-%m-%d'),
                 'total_sales': float(total_sales),
+                'total_paid': float(total_paid),
+                'total_due': float(total_due),
                 'order_count': order_count,
                 'orders': all_order_details,
                 'daily_breakdown': daily_breakdown,

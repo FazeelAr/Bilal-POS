@@ -154,4 +154,43 @@ export const logout = () => {
   clearTokens();
 };
 
+// ----------------------------
+// Receipt API Methods
+// ----------------------------
+// Choose ONE of these options based on your backend endpoint:
+
+// OPTION 1: If your endpoint is /sales/receipts/by-order/{order_id}/
+export const getReceiptByOrderId = (orderId) => {
+  return apiGet(`sales/receipts/by-order/${orderId}/`);
+};
+
+// OPTION 2: If your endpoint is /sales/receipts/?order_id={order_id}
+// export const getReceiptByOrderId = (orderId) => {
+//   return apiGet(`sales/receipts/?order_id=${orderId}`);
+// };
+
+// OPTION 3: If your endpoint is /sales/receipts/?order={order_id}
+// export const getReceiptByOrderId = (orderId) => {
+//   return apiGet(`sales/receipts/?order=${orderId}`);
+// };
+
+export const getReceipt = (receiptId) => {
+  console.log("📡 getReceipt called for id:", receiptId);
+  return apiGet(`sales/receipts/${receiptId}/`);
+};
+
+export const reprintReceipt = (receiptId) => {
+  console.log("📡 reprintReceipt called for id:", receiptId);
+  return apiPost(`sales/receipts/${receiptId}/reprint/`, {});
+};
+
+export const getReceiptsByCustomer = (customerId, startDate, endDate) => {
+  console.log("📡 getReceiptsByCustomer called for customer:", customerId);
+  let url = `sales/receipts/?customer=${customerId}`;
+  if (startDate && endDate) {
+    url += `&start_date=${startDate}&end_date=${endDate}`;
+  }
+  return apiGet(url);
+};
+
 export default api;

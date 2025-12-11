@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { apiPost } from "../api/api";
+import { apiPost, getReceipt, reprintReceipt } from "../api/api";
 
 export default function Receipt() {
   const [searchParams] = useSearchParams();
@@ -15,18 +15,48 @@ export default function Receipt() {
   const [serverResp, setServerResp] = useState(null);
   const [logoError, setLogoError] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isReprinting, setIsReprinting] = useState(false);
 
   useEffect(() => {
     // Check if we have data in URL params (for printing from reports)
     const printData = searchParams.get('data');
     const isPrintMode = searchParams.get('print') === 'true';
+    const receiptId = searchParams.get('receiptId');
 
-    if (isPrintMode && printData) {
+    if (isPrintMode && receiptId) {
+      // Fetch receipt from API using receipt ID
+      (async () => {
+        try {
+          setIsReprinting(true);
+          const response = await getReceipt(receiptId);
+          setUrlData(response.data);
+          
+          // Increment reprint count
+          await reprintReceipt(receiptId);
+        } catch (error) {
+          console.error("Error fetching receipt:", error);
+          // Fallback to data in URL if available
+          if (printData) {
+            try {
+              const decodedData = decodeURIComponent(atob(printData));
+              const parsedData = JSON.parse(decodedData);
+              setUrlData(parsedData);
+            } catch (e) {
+              console.error("Error parsing URL data", e);
+            }
+          }
+        } finally {
+          setIsReprinting(false);
+          setLoading(false);
+        }
+      })();
+    } else if (isPrintMode && printData) {
+      // Legacy support: data in URL
       try {
-        // Decode the base64 data from URL
         const decodedData = decodeURIComponent(atob(printData));
         const parsedData = JSON.parse(decodedData);
         setUrlData(parsedData);
+        setLoading(false);
       } catch (e) {
         console.error("Error parsing URL data", e);
         // If can't parse URL data, try location state
@@ -34,11 +64,14 @@ export default function Receipt() {
           navigate("/pos");
           return;
         }
+        setLoading(false);
       }
+    } else {
+      setLoading(false);
     }
 
     // If no data anywhere, redirect to POS
-    if (!locationPayload && !printData) {
+    if (!locationPayload && !printData && !receiptId) {
       navigate("/pos");
       return;
     }
@@ -217,7 +250,7 @@ export default function Receipt() {
         const receiptData = urlData || locationPayload;
 
         // Only send to backend if it's a new order (not a reprint from reports)
-        if (receiptData && !urlData) {
+        if (receiptData && !urlData && !receiptId) {
           const postData = {
             items: receiptData.items,
             total: receiptData.total,
@@ -234,13 +267,11 @@ export default function Receipt() {
         }
       } catch (err) {
         console.warn("Receipt POST failed", err);
-      } finally {
-        setLoading(false);
       }
     })();
 
     // Auto-print with delay (only if print=true in URL or from POS)
-    if (isPrintMode || locationPayload) {
+    if ((isPrintMode || locationPayload) && !loading) {
       const t = setTimeout(() => {
         try {
           window.print();
@@ -254,14 +285,17 @@ export default function Receipt() {
         const s = document.getElementById("receipt-print-style");
         if (s && s.parentNode) s.parentNode.removeChild(s);
       };
-    } else {
-      setLoading(false);
     }
-  }, [locationPayload, navigate, searchParams, urlData]);
+  }, [locationPayload, navigate, searchParams, urlData, loading]);
 
   // Use URL data if available, otherwise use location state
   const payload = urlData || locationPayload;
-  const responseData = urlData ? { id: searchParams.get('orderId') || payload?.saleId } : backendResponse;
+  const receiptId = searchParams.get('receiptId');
+  const isFromAPI = receiptId && urlData;
+  
+  const responseData = urlData ? { 
+    id: isFromAPI ? payload.receipt_number : searchParams.get('orderId') || payload?.saleId 
+  } : backendResponse;
 
   if (loading) {
     return (
@@ -269,7 +303,7 @@ export default function Receipt() {
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-purple-200 border-t-purple-600 mb-4"></div>
           <p className="text-gray-600 font-medium">
-            Loading receipt...
+            {isReprinting ? "Loading receipt from server..." : "Loading receipt..."}
           </p>
         </div>
       </div>
@@ -294,65 +328,62 @@ export default function Receipt() {
     );
   }
 
-  const {
-    items = [],
-    total = 0,
-    customer = {},
-    payment_amount = 0,
-    payment_status = "paid",
-    balance_due = 0,
-  } = payload;
+  // Handle both old and new data structures
+  const isNewStructure = payload.current_bill_amount !== undefined;
+  
+  // Extract data based on structure
+  const items = isNewStructure 
+    ? (payload.items || []).map(item => ({
+        name: item.product_name,
+        qty: item.quantity,
+        price: item.price_per_unit,
+        factor: 1,
+        lineTotal: item.total,
+        productId: item.product_id
+      }))
+    : (payload.items || []);
+  
+  const currentBillAmount = isNewStructure 
+    ? parseFloat(payload.current_bill_amount) || 0
+    : parseFloat(payload.total) || 0;
+  
+  const paymentMade = isNewStructure
+    ? parseFloat(payload.payment_made) || 0
+    : parseFloat(payload.payment_amount) || 0;
+  
+  const previousBalance = isNewStructure
+    ? parseFloat(payload.previous_balance) || 0
+    : parseFloat(payload.customer?.starting_balance || payload.customer?.balance || 0);
+  
+  const thisOrderBalanceDue = isNewStructure
+    ? parseFloat(payload.this_bill_balance) || 0
+    : parseFloat(payload.balance_due) || 0;
+  
+  const updatedBalance = isNewStructure
+    ? parseFloat(payload.updated_balance) || 0
+    : previousBalance + (currentBillAmount - paymentMade);
+  
+  const paymentStatus = isNewStructure
+    ? payload.payment_status
+    : payload.payment_status || "paid";
+  
+  const customerName = isNewStructure
+    ? payload.customer_name
+    : (payload.customer && typeof payload.customer === "object" ? payload.customer.name : payload.customer);
+  
+  const receiptDate = isNewStructure
+    ? payload.receipt_date || payload.createdAt
+    : payload.createdAt;
 
   // Determine if it's a partial or full payment
-  const isFullPayment = payment_status === "paid";
-  const isPartialPayment = payment_status === "partial";
-  const isUnpaid = payment_status === "unpaid";
-  const hasPaymentInfo = payment_amount !== undefined;
-
-  // Get customer name and previous balance
-  const customerName = customer && typeof customer === "object" ? customer.name : customer;
-
-  // Customer's previous balance (before this transaction)
-  const previousBalance = customer && typeof customer === "object"
-    ? parseFloat(customer.starting_balance || customer.balance || 0)
-    : 0;
+  const isFullPayment = paymentStatus === "paid";
+  const isPartialPayment = paymentStatus === "partial";
+  const isUnpaid = paymentStatus === "unpaid";
+  const hasPaymentInfo = paymentMade !== undefined;
 
   const handleLogoError = () => {
     setLogoError(true);
   };
-
-  // ====== FIXED CALCULATION LOGIC WITH NULL CHECKS ======
-  // Safely parse all values to numbers with defaults
-  const currentBillAmount = parseFloat(total) || 0;
-  const paymentMade = parseFloat(payment_amount) || 0;
-  
-  // Calculate this bill's unpaid portion (ensure it's never negative)
-  const thisBillUnpaid = Math.max(0, currentBillAmount - paymentMade);
-  
-  // Calculate updated balance: Previous Balance + Unpaid portion of current bill
-  let updatedBalance = previousBalance + thisBillUnpaid;
-
-  // Special handling for overpayment (credit)
-  const totalDebtBefore = previousBalance + currentBillAmount;
-  if (paymentMade > totalDebtBefore) {
-    updatedBalance = previousBalance + currentBillAmount - paymentMade; // Negative = credit
-  }
-
-  // This order's balance due (unpaid portion of current bill only)
-  const thisOrderBalanceDue = thisBillUnpaid;
-
-  // Ensure updatedBalance is a valid number
-  if (isNaN(updatedBalance)) {
-    console.error("Invalid updated balance calculation:", {
-      previousBalance,
-      currentBillAmount,
-      paymentMade,
-      thisBillUnpaid,
-      totalDebtBefore
-    });
-    updatedBalance = previousBalance + currentBillAmount; // Fallback to simple addition
-  }
-  // ====== END FIXED CALCULATION ======
 
   return (
     <div
@@ -366,7 +397,7 @@ export default function Receipt() {
             className="text-2xl font-bold text-white text-center"
             style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
           >
-            {urlData ? "Reprint Receipt" : (
+            {receiptId || urlData ? "Reprint Receipt" : (
               isFullPayment
                 ? "Payment Complete!"
                 : isPartialPayment
@@ -376,6 +407,11 @@ export default function Receipt() {
                     : "Receipt Generated"
             )}
           </h2>
+          {receiptId && (
+            <p className="text-sm text-white/80 text-center mt-1">
+              Receipt #: {payload.receipt_number || "N/A"}
+            </p>
+          )}
         </div>
 
         {/* Receipt Preview */}
@@ -425,7 +461,7 @@ export default function Receipt() {
             <div className="divider border-t-2 border-gray-800 my-2 md:my-3"></div>
 
             {/* Customer Information + Sale ID */}
-            {customer && (
+            {customerName && (
               <>
                 <div
                   className="customer-info text-base md:text-lg font-bold text-center text-gray-900 mb-1"
@@ -436,8 +472,10 @@ export default function Receipt() {
                 <div className="sale-id text-xs text-center text-gray-700 mb-1">
                   <span className="font-semibold">Invoice #:</span>{" "}
                   {responseData?.id ||
+                    payload.receipt_number ||
                     serverResp?.id ||
                     payload.saleId ||
+                    payload.order_id ||
                     "N/A"}
                 </div>
                 <div className="divider border-t-2 border-gray-800 my-2 md:my-3"></div>
@@ -449,7 +487,7 @@ export default function Receipt() {
               className="date-info text-sm text-center text-gray-700 mb-2 md:mb-3"
               style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
             >
-              {new Date(payload.createdAt).toLocaleString("en-US", {
+              {new Date(receiptDate).toLocaleString("en-US", {
                 year: "numeric",
                 month: "short",
                 day: "numeric",
@@ -571,7 +609,7 @@ export default function Receipt() {
                 </>
               )}
 
-              {/* UPDATED TOTAL BALANCE - FIXED */}
+              {/* UPDATED TOTAL BALANCE */}
               <div
                 className="total-balance-row flex justify-between items-center mt-2"
                 style={{
@@ -590,9 +628,9 @@ export default function Receipt() {
                 <span className="font-bold">UPDATED BALANCE:</span>
                 <span className="font-bold">
                   Rs {Math.abs(updatedBalance).toFixed(2)}
-                  {updatedBalance > 0 && " (Amount Due)"}
-                  {updatedBalance < 0 && " (Credit)"}
-                  {updatedBalance === 0 && " (Settled)"}
+                  {updatedBalance > 0 && ""}
+                  {updatedBalance < 0 && ""}
+                  {updatedBalance === 0 && ""}
                 </span>
               </div>
             </div>
@@ -607,7 +645,9 @@ export default function Receipt() {
               Thank You For Your Business!
             </div>
             <div className="text-xs text-center text-gray-500 mt-1">
-              {urlData ? "Reprinted Receipt" : "Please keep this receipt for your records"}
+              {receiptId || urlData 
+                ? `Reprinted Receipt ${payload.reprint_count ? `(Reprint ${payload.reprint_count + 1})` : ''}`
+                : "Please keep this receipt for your records"}
             </div>
           </div>
 

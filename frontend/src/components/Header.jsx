@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, BarChart3, UserPlus } from "lucide-react";
+import { Home, BarChart3, UserPlus, LogOut } from "lucide-react";
+import { logout } from "../api/api"; // Assuming you have a logout function in api.js
 
 function Header() {
   const navigate = useNavigate();
@@ -31,6 +32,12 @@ function Header() {
     navigate("/add-customer");
   };
 
+  const handleLogout = () => {
+    // Call your logout function from api.js
+    logout();
+    navigate("/login");
+  };
+
   return (
     <header className="bg-linear-to-r from-purple-600 via-pink-500 to-rose-500 shadow-xl relative overflow-hidden">
       {/* Decorative background elements */}
@@ -39,9 +46,9 @@ function Header() {
       <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/10 rounded-full -ml-32 -mb-32"></div>
 
       <div className="container mx-auto px-4 py-3 relative z-10">
-        {/* Main header row */}
-        <div className="flex items-center justify-between mb-3">
-          {/* Logo and Title Section */}
+        {/* Main header row - all items in one row */}
+        <div className="flex items-center justify-between">
+          {/* Logo and Title Section - Left side */}
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center shadow-lg">
               <span className="text-2xl">🐔</span>
@@ -63,37 +70,50 @@ function Header() {
             </div>
           </div>
 
-          {/* Add Customer Button */}
-          <button
-            onClick={handleAddCustomer}
-            className="bg-linear-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-4 py-2 rounded-lg transition-all duration-200 font-semibold shadow-lg hover:shadow-xl flex items-center gap-2"
-          >
-            <UserPlus className="w-4 h-4" />
-            Add Customer
-          </button>
-        </div>
+          {/* Centered Navigation - Now in the center of the header */}
+          <nav className="flex items-center justify-center gap-2">
+            {navigationItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = isActivePath(item.path);
+              return (
+                <button
+                  key={item.path}
+                  onClick={() => navigate(item.path)}
+                  className={`group flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                    isActive
+                      ? "bg-white/25 text-white shadow-lg backdrop-blur-sm border border-white/30 transform scale-105"
+                      : "text-white/90 hover:text-white hover:bg-white/15 border border-transparent hover:border-white/20"
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
 
-        {/* Navigation - Centered with larger buttons */}
-        <nav className="flex items-center justify-center gap-2">
-          {navigationItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = isActivePath(item.path);
-            return (
-              <button
-                key={item.path}
-                onClick={() => navigate(item.path)}
-                className={`group flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                  isActive
-                    ? "bg-white/25 text-white shadow-lg backdrop-blur-sm border border-white/30 transform scale-105"
-                    : "text-white/90 hover:text-white hover:bg-white/15 border border-transparent hover:border-white/20"
-                }`}
-              >
-                <Icon className="w-4.5 h-4.5" />
-                {item.label}
-              </button>
-            );
-          })}
-        </nav>
+          {/* Right side buttons - Add Customer and Logout */}
+          <div className="flex items-center gap-2">
+            {/* Add Customer Button */}
+            <button
+              onClick={handleAddCustomer}
+              className="bg-linear-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-4 py-2 rounded-lg transition-all duration-200 font-semibold shadow-lg hover:shadow-xl flex items-center gap-2"
+            >
+              <UserPlus className="w-4 h-4" />
+              Add Customer
+            </button>
+
+            {/* Logout Button */}
+            <button
+              onClick={handleLogout}
+              className="bg-linear-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white px-4 py-2 rounded-lg transition-all duration-200 font-semibold shadow-lg hover:shadow-xl flex items-center gap-2"
+              title="Logout"
+            >
+              <LogOut className="w-4 h-4" />
+              Logout
+            </button>
+          </div>
+        </div>
       </div>
     </header>
   );

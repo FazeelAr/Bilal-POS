@@ -1,22 +1,25 @@
 import React, { useState } from "react";
-import { login } from "../api/api"; // <-- import login() from api.js
+import { login } from "../api/api";
 
 function Login() {
-  const [username, setUsername] = useState(""); // Django uses username
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setLoading(true);
 
     try {
-      // Call backend to get access + refresh tokens
       await login(username, password);
-      window.location.href = "/pos"; // redirect to POS page
+      window.location.href = "/pos";
     } catch (err) {
       console.error("Login failed", err);
       setError("Invalid username or password");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -45,7 +48,8 @@ function Login() {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
-            className="w-full p-2.5 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            disabled={loading}
+            className="w-full p-2.5 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
           />
         </div>
 
@@ -58,15 +62,24 @@ function Login() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="w-full p-2.5 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            disabled={loading}
+            className="w-full p-2.5 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
           />
         </div>
 
         <button
           type="submit"
-          className="w-full py-3 px-2 rounded-md bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-none cursor-pointer font-semibold text-base hover:shadow-lg transition-shadow"
+          disabled={loading}
+          className="w-full py-3 px-2 rounded-md bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-none cursor-pointer font-semibold text-base hover:shadow-lg transition-shadow disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          Login
+          {loading ? (
+            <>
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              <span>Logging in...</span>
+            </>
+          ) : (
+            "Login"
+          )}
         </button>
       </form>
     </div>

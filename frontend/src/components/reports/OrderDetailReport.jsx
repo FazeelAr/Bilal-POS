@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Package,
   Calendar,
@@ -8,6 +8,7 @@ import {
   CreditCard,
   Printer,
 } from "lucide-react";
+import { getReceiptByOrderId } from "../../api/api";
 
 // Helper function for payment status styling
 const getPaymentStatusClass = (status) => {
@@ -30,6 +31,8 @@ export default function OrderDetailReport({
   customerBalance,
   showBalance = true,
 }) {
+  const [printingOrders, setPrintingOrders] = useState({});
+
   const formatCurrency = (amount) => {
     const numAmount = parseFloat(amount) || 0;
     return new Intl.NumberFormat("en-PK", {
@@ -42,11 +45,11 @@ export default function OrderDetailReport({
 
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
-    
+
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return "Invalid Date";
-      
+
       return date.toLocaleDateString("en-US", {
         year: "numeric",
         month: "short",
@@ -60,57 +63,116 @@ export default function OrderDetailReport({
 
   // Safely calculate totals
   const totalAmount = (Array.isArray(orders) ? orders : []).reduce(
-    (sum, order) => sum + (parseFloat(order?.amount) || 0),
+    (sum, order) => sum + (parseFloat(order?.total || order?.amount) || 0),
     0
   );
-  
+
   const totalItems = (Array.isArray(orders) ? orders : []).reduce(
     (sum, order) => sum + (parseInt(order?.items_count, 10) || 0),
     0
   );
 
-  const handlePrintReceipt = (order) => {
-    if (!order) return;
+  const handlePrintReceipt = async (order) => {
+    if (!order?.id) {
+      console.error("No order ID provided");
+      return;
+    }
+
+    const orderId = order.id;
+    
+    // Set loading state for this specific order
+    setPrintingOrders(prev => ({ ...prev, [orderId]: true }));
 
     try {
-      const items = Array.isArray(order.items) ? order.items : [];
-      
-      const receiptPayload = {
-        items: items.map(item => ({
-          name: item?.name || "Product",
-          qty: parseFloat(item?.quantity) || 0,
-          price: parseFloat(item?.price) || 0,
-          factor: 1,
-          lineTotal: parseFloat(item?.total) || 0,
-          productId: item?.id || Math.random().toString(36).substring(2, 11)
-        })),
-        total: parseFloat(order.amount) || 0,
-        createdAt: order.order_date || new Date().toISOString(),
-        customer: {
-          name: order.customer_name || customerName || "Customer",
-          balance: parseFloat(customerBalance) || 0,
-          starting_balance: parseFloat(customerBalance) || 0
-        },
-        payment_amount: parseFloat(order.amount) || 0,
-        payment_status: order.payment_status || 'paid',
-        balance_due: 0,
-        saleId: order.id
-      };
+      // Try to fetch receipt from new Receipt API
+      const response = await getReceiptByOrderId(orderId);
 
-      // Convert payload to base64 to pass in URL
-      const jsonString = JSON.stringify(receiptPayload);
-      const encodedPayload = btoa(encodeURIComponent(jsonString));
+      if (response.data && response.data.length > 0) {
+        const receipt = response.data[0];
 
-      // Open receipt page with data in URL
-      const receiptUrl = `/receipt?print=true&data=${encodedPayload}&orderId=${order.id}`;
-      const receiptWindow = window.open(receiptUrl, '_blank', 'noopener,noreferrer');
+        // Create URL with receipt ID for fetching
+        const receiptUrl = `/receipt?print=true&receiptId=${receipt.id}`;
+        const receiptWindow = window.open(receiptUrl, '_blank', 'noopener,noreferrer');
 
-      if (receiptWindow) {
-        receiptWindow.focus();
+        if (receiptWindow) {
+          receiptWindow.focus();
+        }
+      } else {
+        // Fallback: use old method with order data
+        console.warn('No receipt found, falling back to order data');
+        
+        // Create receipt payload from order data
+        const receiptPayload = {
+          items: (order.items || []).map(item => ({
+            name: item?.name || "Product",
+            qty: parseFloat(item?.quantity) || 0,
+            price: parseFloat(item?.price) || 0,
+            factor: 1,
+            lineTotal: parseFloat(item?.total || (item?.quantity * item?.price)) || 0,
+            productId: item?.id || Math.random().toString(36).substring(2, 11)
+          })),
+          total: parseFloat(order.total || order.amount) || 0,
+          createdAt: order.date || order.order_date || new Date().toISOString(),
+          customer: {
+            name: order.customer_name || order.client?.name || customerName || "Customer",
+            balance: parseFloat(customerBalance) || 0,
+            starting_balance: parseFloat(customerBalance) || 0
+          },
+          payment_amount: parseFloat(order.payment_amount) || 0,
+          payment_status: order.payment_status || 'paid',
+          balance_due: parseFloat(order.balance_due) || 0,
+          saleId: order.id
+        };
+
+        const encodedPayload = btoa(encodeURIComponent(JSON.stringify(receiptPayload)));
+        const receiptUrl = `/receipt?print=true&data=${encodedPayload}&orderId=${order.id}`;
+        const receiptWindow = window.open(receiptUrl, '_blank', 'noopener,noreferrer');
+        
+        if (receiptWindow) {
+          receiptWindow.focus();
+        }
       }
     } catch (error) {
-      console.error("Error generating receipt:", error);
-      alert("Failed to generate receipt. Please try again.");
+      console.error('Error printing receipt:', error);
+      
+      // Fallback to original method
+      try {
+        const receiptPayload = {
+          items: (order.items || []).map(item => ({
+            name: item?.name || "Product",
+            qty: parseFloat(item?.quantity) || 0,
+            price: parseFloat(item?.price) || 0,
+            factor: 1,
+            lineTotal: parseFloat(item?.total || (item?.quantity * item?.price)) || 0,
+            productId: item?.id || Math.random().toString(36).substring(2, 11)
+          })),
+          total: parseFloat(order.total || order.amount) || 0,
+          createdAt: order.date || order.order_date || new Date().toISOString(),
+          customer: {
+            name: order.customer_name || order.client?.name || customerName || "Customer",
+            balance: parseFloat(customerBalance) || 0,
+            starting_balance: parseFloat(customerBalance) || 0
+          },
+          payment_amount: parseFloat(order.payment_amount) || 0,
+          payment_status: order.payment_status || 'paid',
+          balance_due: parseFloat(order.balance_due) || 0,
+          saleId: order.id
+        };
+
+        const encodedPayload = btoa(encodeURIComponent(JSON.stringify(receiptPayload)));
+        const receiptUrl = `/receipt?print=true&data=${encodedPayload}&orderId=${order.id}`;
+        const receiptWindow = window.open(receiptUrl, '_blank', 'noopener,noreferrer');
+        
+        if (receiptWindow) {
+          receiptWindow.focus();
+        }
+      } catch (fallbackError) {
+        console.error('Fallback receipt creation failed:', fallbackError);
+        alert("Failed to generate receipt. Please try again.");
+      }
+    } finally {
+      // Clear loading state
+      setPrintingOrders(prev => ({ ...prev, [orderId]: false }));
     }
   };
 
@@ -238,7 +300,8 @@ export default function OrderDetailReport({
               {safeOrders.map((order) => {
                 const orderId = order?.id || `order-${Math.random()}`;
                 const items = Array.isArray(order?.items) ? order.items : [];
-                
+                const isPrinting = printingOrders[orderId];
+
                 return (
                   <tr
                     key={orderId}
@@ -251,12 +314,12 @@ export default function OrderDetailReport({
                     </td>
                     <td className="py-4 px-6">
                       <span className="font-medium text-gray-800">
-                        {order?.customer_name || "N/A"}
+                        {order?.customer_name || order?.client?.name || "N/A"}
                       </span>
                     </td>
                     <td className="py-4 px-6">
                       <span className="text-gray-700">
-                        {formatDate(order?.order_date)}
+                        {formatDate(order?.date || order?.order_date)}
                       </span>
                     </td>
                     <td className="py-4 px-6">
@@ -282,7 +345,7 @@ export default function OrderDetailReport({
                     </td>
                     <td className="py-4 px-6">
                       <span className="font-bold text-gray-900">
-                        {formatCurrency(order?.amount)}
+                        {formatCurrency(order?.total || order?.amount)}
                       </span>
                     </td>
                     <td className="py-4 px-6">
@@ -303,12 +366,22 @@ export default function OrderDetailReport({
                     <td className="py-4 px-6">
                       <button
                         onClick={() => handlePrintReceipt(order)}
-                        className="px-3 py-1.5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg text-sm font-medium hover:from-blue-600 hover:to-cyan-600 transition-colors flex items-center gap-1 shadow-sm hover:shadow focus:outline-none focus:ring-2 focus:ring-blue-300"
+                        disabled={isPrinting}
+                        className={`px-3 py-1.5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg text-sm font-medium hover:from-blue-600 hover:to-cyan-600 transition-colors flex items-center gap-1 shadow-sm hover:shadow focus:outline-none focus:ring-2 focus:ring-blue-300 ${isPrinting ? 'opacity-50 cursor-not-allowed' : ''}`}
                         title="Print Receipt"
                         type="button"
                       >
-                        <Printer className="w-4 h-4" />
-                        Print
+                        {isPrinting ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            Printing...
+                          </>
+                        ) : (
+                          <>
+                            <Printer className="w-4 h-4" />
+                            Print
+                          </>
+                        )}
                       </button>
                     </td>
                   </tr>
@@ -350,28 +423,39 @@ export default function OrderDetailReport({
             {safeOrders.map((order) => {
               const items = Array.isArray(order?.items) ? order.items : [];
               if (items.length === 0) return null;
-              
+              const orderId = order?.id || `details-${Math.random()}`;
+              const isPrinting = printingOrders[orderId];
+
               return (
-                <div key={order?.id || `details-${Math.random()}`} className="bg-gray-50 rounded-lg p-4">
+                <div key={orderId} className="bg-gray-50 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div>
                       <span className="font-semibold">Order #{order?.id}</span>
                       <span className="text-sm text-gray-500 ml-3">
-                        {formatDate(order?.order_date)}
+                        {formatDate(order?.date || order?.order_date)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-gray-900">
-                        {formatCurrency(order?.amount)}
+                        {formatCurrency(order?.total || order?.amount)}
                       </span>
                       <button
                         onClick={() => handlePrintReceipt(order)}
-                        className="ml-2 px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm font-medium hover:bg-blue-200 transition-colors flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                        disabled={isPrinting}
+                        className={`ml-2 px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm font-medium hover:bg-blue-200 transition-colors flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-blue-300 ${isPrinting ? 'opacity-50 cursor-not-allowed' : ''}`}
                         title="Print Receipt"
                         type="button"
                       >
-                        <Printer className="w-3 h-3" />
-                        Print
+                        {isPrinting ? (
+                          <>
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-700"></div>
+                          </>
+                        ) : (
+                          <>
+                            <Printer className="w-3 h-3" />
+                            Print
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -389,7 +473,7 @@ export default function OrderDetailReport({
                             {item?.quantity || 0} × {formatCurrency(item?.price || 0)}
                           </span>
                           <span className="font-semibold">
-                            {formatCurrency(item?.total || 0)}
+                            {formatCurrency(item?.total || (item?.quantity * item?.price) || 0)}
                           </span>
                         </div>
                       </div>
