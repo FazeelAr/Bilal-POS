@@ -36,30 +36,30 @@ export default function ProductCard({ product, onAdd, onEdit }) {
   };
 
   return (
-    <div className="group relative bg-gradient-to-br from-white/95 to-purple-50/95 rounded-2xl shadow-lg overflow-hidden border border-white/30 hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 w-full">
+    <div className="group relative bg-gradient-to-br from-white/95 to-purple-50/95 rounded-xl sm:rounded-2xl shadow-lg overflow-hidden border border-white/30 hover:shadow-xl sm:hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 w-full">
       {/* Edit Button - positioned absolutely */}
       {typeof onEdit === 'function' && (
         <button
           onClick={handleEditClick}
-          className="edit-button absolute top-2 left-2 z-10 p-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-lg hover:scale-110 active:scale-95 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300"
+          className="edit-button absolute top-1.5 sm:top-2 left-1.5 sm:left-2 z-10 p-1.5 sm:p-2 rounded-md sm:rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-md sm:hover:shadow-lg hover:scale-110 active:scale-95 transition-all duration-200 focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-blue-300"
           title="Edit Product"
           type="button"
           aria-label={`Edit ${productName}`}
         >
-          <Edit className="w-3.5 h-3.5" />
+          <Edit className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
         </button>
       )}
 
       {/* Clickable card area */}
       <button
         onClick={handleCardClick}
-        className="w-full text-left focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full text-left focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed"
         disabled={!onAdd}
         type="button"
         aria-label={`Add ${productName} to cart`}
       >
         {/* Product Image */}
-        <div className="h-36 bg-gradient-to-br from-purple-100 to-pink-100 relative overflow-hidden">
+        <div className="h-28 sm:h-36 bg-gradient-to-br from-purple-100 to-pink-100 relative overflow-hidden">
           {!imageError ? (
             <img
               src={imageUrl}
@@ -74,14 +74,14 @@ export default function ProductCard({ product, onAdd, onEdit }) {
               className="w-full h-full flex items-center justify-center"
               aria-label={`No image available for ${productName}`}
             >
-              <div className="text-4xl" role="img" aria-label="Product icon">🥩</div>
+              <div className="text-3xl sm:text-4xl" role="img" aria-label="Product icon">🥩</div>
             </div>
           )}
 
           {/* Price Tag */}
           {productPrice > 0 && (
             <div 
-              className="absolute top-2 right-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg"
+              className="absolute top-1.5 sm:top-2 right-1.5 sm:right-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs font-bold shadow-md sm:shadow-lg"
               aria-label={`Price: Rs ${productPrice.toFixed(2)} per kilogram`}
             >
               Rs {productPrice.toFixed(2)}/kg
@@ -90,24 +90,24 @@ export default function ProductCard({ product, onAdd, onEdit }) {
 
           {/* Add Icon Overlay (shown on hover) */}
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-300 flex items-center justify-center">
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/90 rounded-full p-2 shadow-xl">
-              <Plus className="w-5 h-5 text-purple-600" />
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/90 rounded-full p-1.5 sm:p-2 shadow-lg sm:shadow-xl">
+              <Plus className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
             </div>
           </div>
         </div>
 
         {/* Product Info */}
-        <div className="p-3">
+        <div className="p-2 sm:p-3">
           <h4 
-            className="font-bold text-gray-800 text-sm mb-2 line-clamp-2 h-10"
+            className="font-bold text-gray-800 text-xs sm:text-sm mb-1 sm:mb-2 line-clamp-2 h-8 sm:h-10"
             title={productName}
           >
             {productName}
           </h4>
 
           {/* Add text hint (replaces the Add button) */}
-          <div className="flex items-center justify-center py-1">
-            <span className="text-xs text-gray-600 font-medium">
+          <div className="flex items-center justify-center py-0.5 sm:py-1">
+            <span className="text-xs text-gray-600 font-medium truncate">
               {typeof onAdd === 'function' ? "Click to add to cart" : "Select a product"}
             </span>
           </div>

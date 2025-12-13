@@ -3,7 +3,7 @@ import { apiGet } from "../api/api";
 import ReportHeader from "../components/reports/ReportHeader";
 import ReportFilters from "../components/reports/ReportFilters";
 import DailyReport from "../components/reports/DailyReport";
-import MonthlyReport from "../components/reports/MonthlyReport";
+//import MonthlyReport from "../components/reports/MonthlyReport";
 import DateRangeReport from "../components/reports/DateRangeReport";
 import ReportSummary from "../components/reports/ReportSummary";
 import ReportEmptyState from "../components/reports/ReportEmptyState";
@@ -29,10 +29,10 @@ export default function Report() {
     reportType: "daily",
     selectedCustomer: "",
     dailyDate: today.toISOString().split("T")[0],
-    monthlyStartDate: firstDayOfMonth.toISOString().split("T")[0], // Default: start of current month
-    monthlyEndDate: today.toISOString().split("T")[0], // Default: today
-    rangeStartDate: firstDayOfLastMonth.toISOString().split("T")[0], // Default: start of last month
-    rangeEndDate: lastDayOfLastMonth.toISOString().split("T")[0], // Default: end of last month
+    monthlyStartDate: firstDayOfMonth.toISOString().split("T")[0],
+    monthlyEndDate: today.toISOString().split("T")[0],
+    rangeStartDate: firstDayOfLastMonth.toISOString().split("T")[0],
+    rangeEndDate: lastDayOfLastMonth.toISOString().split("T")[0],
   });
 
   const [reportData, setReportData] = useState({
@@ -44,11 +44,14 @@ export default function Report() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("summary");
   const [authError, setAuthError] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
-  // Fetch customers on component mount
   useEffect(() => {
     fetchCustomers();
-    // Don't fetch report automatically on mount
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   const fetchCustomers = async () => {
@@ -74,8 +77,9 @@ export default function Report() {
     try {
       if (filters.reportType === "daily") {
         await fetchDailyReport();
-      } else if (filters.reportType === "monthly") {
-        await fetchMonthlyReport();
+      //} 
+      // else if (filters.reportType === "monthly") {
+      //   await fetchMonthlyReport();
       } else if (filters.reportType === "range") {
         await fetchDateRangeReport();
       }
@@ -108,34 +112,62 @@ export default function Report() {
     }
   };
 
-  const fetchMonthlyReport = async () => {
-    try {
-      const params = new URLSearchParams();
+  // const fetchMonthlyReport = async () => {
+  //   try {
+  //     const params = new URLSearchParams();
 
-      // Always include date range for monthly report
-      if (filters.monthlyStartDate) {
-        params.append("start_date", filters.monthlyStartDate);
-      }
-      if (filters.monthlyEndDate) {
-        params.append("end_date", filters.monthlyEndDate);
-      }
+  //     // Always include date range for monthly report
+  //     if (filters.monthlyStartDate) {
+  //       params.append("start_date", filters.monthlyStartDate);
+  //     }
+  //     if (filters.monthlyEndDate) {
+  //       params.append("end_date", filters.monthlyEndDate);
+  //     }
 
-      // Only add customer filter if a customer is selected
-      if (filters.selectedCustomer) {
-        params.append("customer", filters.selectedCustomer);
-      }
+  //     // Only add customer filter if a customer is selected
+  //     if (filters.selectedCustomer) {
+  //       params.append("customer", filters.selectedCustomer);
+  //     }
 
-      console.log("📊 Fetching monthly report with params:", params.toString());
-      const res = await apiGet(`sales/orders/reports/monthly/?${params}`);
-      if (res && res.data) {
-        setReportData((prev) => ({ ...prev, monthly: res.data }));
-        setActiveTab("monthly");
-      }
-    } catch (err) {
-      handleApiError(err);
-      throw err;
-    }
-  };
+  //     console.log("📊 Fetching monthly report with params:", params.toString());
+  //     const res = await apiGet(`sales/orders/reports/monthly/?${params}`);
+
+  //     // DEBUG: Log the COMPLETE response
+  //     console.log("📊 Monthly report COMPLETE response object:", res);
+  //     console.log("📊 Monthly report data property:", res?.data);
+  //     console.log("📊 Monthly report status:", res?.status);
+
+  //     if (res && res.data) {
+  //       // Check if data is an array or object
+  //       if (Array.isArray(res.data)) {
+  //         console.log("📊 Monthly report data is array, length:", res.data.length);
+  //         console.log("📊 Array contents:", JSON.stringify(res.data, null, 2));
+  //       } else if (typeof res.data === 'object') {
+  //         console.log("📊 Monthly report data is object, keys:", Object.keys(res.data));
+  //         console.log("📊 Object contents:", JSON.stringify(res.data, null, 2));
+
+  //         // Specifically check for the reports property
+  //         if (res.data.reports) {
+  //           console.log("📊 reports property found, is array?:", Array.isArray(res.data.reports));
+  //           console.log("📊 reports array length:", res.data.reports?.length || 0);
+  //           if (res.data.reports?.length > 0) {
+  //             console.log("📊 First report item:", res.data.reports[0]);
+  //           }
+  //         }
+  //       }
+
+  //       setReportData((prev) => ({ ...prev, monthly: res.data }));
+  //       setActiveTab("monthly");
+
+  //       console.log("📊 Updated reportData.monthly:", res.data);
+  //     } else {
+  //       console.warn("📊 Monthly report response missing data:", res);
+  //     }
+  //   } catch (err) {
+  //     handleApiError(err);
+  //     throw err;
+  //   }
+  // };
 
   const fetchDateRangeReport = async () => {
     try {
@@ -194,8 +226,8 @@ export default function Report() {
       // Bad request error from server
       setError(
         err.response.data.error ||
-          err.response.data.detail ||
-          "Invalid request parameters"
+        err.response.data.detail ||
+        "Invalid request parameters"
       );
     } else if (err.response?.data?.detail) {
       setError(err.response.data.detail);
@@ -267,43 +299,6 @@ export default function Report() {
     setAuthError(false);
   };
 
-  // Add this function to generate a quick report for current month
-  const generateCurrentMonthReport = async () => {
-    const today = new Date();
-    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-
-    setFilters((prev) => ({
-      ...prev,
-      reportType: "monthly",
-      monthlyStartDate: firstDayOfMonth.toISOString().split("T")[0],
-      monthlyEndDate: today.toISOString().split("T")[0],
-    }));
-
-    // Wait a bit for state to update, then generate report
-    setTimeout(() => {
-      generateReport();
-    }, 100);
-  };
-
-  // Add this function to generate a quick report for last 30 days
-  const generateLast30DaysReport = async () => {
-    const today = new Date();
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(today.getDate() - 30);
-
-    setFilters((prev) => ({
-      ...prev,
-      reportType: "range",
-      rangeStartDate: thirtyDaysAgo.toISOString().split("T")[0],
-      rangeEndDate: today.toISOString().split("T")[0],
-    }));
-
-    // Wait a bit for state to update, then generate report
-    setTimeout(() => {
-      generateReport();
-    }, 100);
-  };
-
   const handleLoginRedirect = () => {
     window.location.href = "/login";
   };
@@ -314,22 +309,22 @@ export default function Report() {
   // If authentication error, show login prompt
   if (authError) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 p-4 md:p-6 flex items-center justify-center">
-        <div className="max-w-md mx-auto text-center">
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 p-3 sm:p-4 md:p-6 flex items-center justify-center">
+        <div className="max-w-md mx-auto text-center w-full">
           <ReportHeader />
-          <div className="bg-white rounded-2xl shadow-lg border border-purple-100 p-8 mt-6">
-            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <span className="text-2xl">🔒</span>
+          <div className="bg-white rounded-2xl shadow-lg border border-purple-100 p-6 sm:p-8 mt-4 sm:mt-6 mx-2">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+              <span className="text-xl sm:text-2xl">🔒</span>
             </div>
-            <h3 className="text-2xl font-bold text-gray-800 mb-3">
+            <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2 sm:mb-3">
               Authentication Required
             </h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-600 text-sm sm:text-base mb-4 sm:mb-6">
               {error || "Please log in to access the reports dashboard"}
             </p>
             <button
               onClick={handleLoginRedirect}
-              className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-200"
+              className="w-full py-2.5 sm:py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-200 text-sm sm:text-base"
             >
               Go to Login
             </button>
@@ -340,33 +335,33 @@ export default function Report() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 p-4 md:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 p-3 sm:p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
         <ReportHeader />
 
         {/* Quick Action Buttons */}
-        <div className="flex flex-wrap gap-3 mb-6">
+        <div className="flex flex-wrap gap-2 sm:gap-3 mb-4 sm:mb-6">
           <button
             onClick={() => {
               setFilters((prev) => ({ ...prev, reportType: "daily" }));
               setTimeout(() => generateReport(), 100);
             }}
-            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-200"
+            className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-200 text-xs sm:text-sm"
           >
             Today's Report
           </button>
 
           <button
             onClick={() => setActiveTab("balances")}
-            className="px-4 py-2 bg-gradient-to-r from-yellow-600 to-orange-600 text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-200"
+            className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-yellow-600 to-orange-600 text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-200 text-xs sm:text-sm"
           >
             View Balances
           </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Filters Sidebar */}
-          <div className="lg:col-span-1">
+        <div className="flex flex-col lg:grid lg:grid-cols-4 gap-4 sm:gap-6">
+          {/* Filters Sidebar - Full width on mobile, top position */}
+          <div className="lg:col-span-1 order-1 lg:order-1">
             <ReportFilters
               filters={filters}
               customers={customers}
@@ -378,7 +373,7 @@ export default function Report() {
           </div>
 
           {/* Reports Content */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-3 order-2 lg:order-2">
             {loading && <ReportLoading />}
 
             {error && !loading && (
@@ -387,26 +382,29 @@ export default function Report() {
 
             {!loading && !error && (
               <>
-                {/* Report Type Tabs */}
-                <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+                {/* Report Type Tabs - Horizontal scroll on mobile */}
+                <div className="flex gap-1 sm:gap-2 mb-4 sm:mb-6 overflow-x-auto pb-2 -mx-1 sm:mx-0 px-1 sm:px-0">
                   <TabButton
                     active={activeTab === "summary"}
                     onClick={() => setActiveTab("summary")}
                     icon="📊"
                     label="Summary"
+                    isMobile={isMobile}
                   />
                   <TabButton
                     active={activeTab === "balances"}
                     onClick={() => setActiveTab("balances")}
                     icon="💰"
                     label="Balances"
+                    isMobile={isMobile}
                   />
                   {reportData.daily && (
                     <TabButton
                       active={activeTab === "daily"}
                       onClick={() => setActiveTab("daily")}
                       icon="📅"
-                      label="Daily Report"
+                      label="Daily"
+                      isMobile={isMobile}
                     />
                   )}
                   {reportData.monthly.length > 0 && (
@@ -414,7 +412,8 @@ export default function Report() {
                       active={activeTab === "monthly"}
                       onClick={() => setActiveTab("monthly")}
                       icon="📈"
-                      label="Monthly Report"
+                      label="Monthly"
+                      isMobile={isMobile}
                     />
                   )}
                   {reportData.range && (
@@ -422,11 +421,13 @@ export default function Report() {
                       active={activeTab === "range"}
                       onClick={() => setActiveTab("range")}
                       icon="📋"
-                      label="Date Range"
+                      label="Range"
+                      isMobile={isMobile}
                     />
                   )}
                 </div>
-                <div className="bg-white rounded-2xl shadow-lg border border-purple-100 p-4 md:p-6">
+
+                <div className="bg-white rounded-2xl shadow-lg border border-purple-100 p-3 sm:p-4 md:p-6">
                   {activeTab === "summary" && !hasReportData && (
                     <ReportEmptyState />
                   )}
@@ -445,9 +446,9 @@ export default function Report() {
                     <DailyReport report={reportData.daily} />
                   )}
 
-                  {activeTab === "monthly" && reportData.monthly.length > 0 && (
+                  {/* {activeTab === "monthly" && reportData.monthly.length > 0 && (
                     <MonthlyReport reports={reportData.monthly} />
-                  )}
+                  )} */}
 
                   {activeTab === "range" && reportData.range && (
                     <DateRangeReport report={reportData.range} />
@@ -463,18 +464,17 @@ export default function Report() {
 }
 
 // Helper component for tabs
-function TabButton({ active, onClick, icon, label }) {
+function TabButton({ active, onClick, icon, label, isMobile }) {
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all duration-200 whitespace-nowrap ${
-        active
+      className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-semibold transition-all duration-200 whitespace-nowrap flex-shrink-0 ${active
           ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md"
           : "bg-white text-gray-700 hover:bg-purple-50 border border-purple-100"
-      }`}
+        }`}
     >
-      <span>{icon}</span>
-      <span>{label}</span>
+      <span className="text-sm sm:text-base">{icon}</span>
+      <span className="text-xs sm:text-sm">{isMobile && label.length > 8 ? label.substring(0, 6) + '..' : label}</span>
     </button>
   );
 }

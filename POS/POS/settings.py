@@ -1,3 +1,5 @@
+# my domain name is famtrixsolutions.com but I want to host the app on subdomain names bilalppoultrytraders.famtrixsolutions.com
+# I am going to provide you my settings.py file update it and then tell me the furter configurations.
 import os
 from pathlib import Path
 from datetime import timedelta

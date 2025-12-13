@@ -8,21 +8,55 @@ import Product from "./pages/Product";
 import Receipt from "./pages/Receipt";
 import Report from "./pages/Report";
 import AddCustomer from "./pages/AddCustomer";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+
+// Import the ProtectedRoute component
+import ProtectedRoute from "./components/ProtectedRoute";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <BrowserRouter>
       <Routes>
+        {/* Root layout */}
         <Route path="/" element={<App />}>
+          {/* Public routes */}
           <Route index element={<Login />} />
           <Route path="login" element={<Login />} />
-          <Route path="pos" element={<Pos />} />
-          <Route path="product/:id" element={<Product />} />
-          <Route path="receipt" element={<Receipt />} />
-          <Route path="report" element={<Report />} />
-          <Route path="add-customer" element={<AddCustomer />} />
+          
+          {/* Protected routes */}
+          <Route path="pos" element={
+            <ProtectedRoute>
+              <Pos />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="product/:id" element={
+            <ProtectedRoute>
+              <Product />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="receipt" element={
+            <ProtectedRoute>
+              <Receipt />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="report" element={
+            <ProtectedRoute>
+              <Report />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="add-customer" element={
+            <ProtectedRoute>
+              <AddCustomer />
+            </ProtectedRoute>
+          } />
         </Route>
+        
+        {/* Catch all route - redirect to login */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>
