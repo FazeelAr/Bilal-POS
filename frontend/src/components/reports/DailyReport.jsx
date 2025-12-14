@@ -51,9 +51,7 @@ export default function DailyReport({ report }) {
 
         <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 sm:p-5 border border-purple-100">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-pink-100 rounded-lg">
-              <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-pink-600" />
-            </div>
+            
             <div>
               <p className="text-xs sm:text-sm font-medium text-gray-600">
                 Total Sales

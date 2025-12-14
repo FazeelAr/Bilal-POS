@@ -59,9 +59,6 @@ export default function DateRangeReport({ report }) {
           <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 sm:p-5 border border-blue-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
-                </div>
                 <div>
                   <p className="text-xs sm:text-sm font-medium text-gray-600">
                     Customer Balance
@@ -119,9 +116,6 @@ export default function DateRangeReport({ report }) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
         <div className="bg-white rounded-xl p-3 sm:p-4 border border-purple-100 shadow-sm">
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="p-1.5 sm:p-2 bg-purple-100 rounded-lg">
-              <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 text-purple-600" />
-            </div>
             <div>
               <p className="text-xs sm:text-sm font-medium text-gray-600">
                 Total Sales
@@ -135,9 +129,6 @@ export default function DateRangeReport({ report }) {
 
         <div className="bg-white rounded-xl p-3 sm:p-4 border border-purple-100 shadow-sm">
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="p-1.5 sm:p-2 bg-pink-100 rounded-lg">
-              <FileText className="w-3 h-3 sm:w-4 sm:h-4 text-pink-600" />
-            </div>
             <div>
               <p className="text-xs sm:text-sm font-medium text-gray-600">
                 Total Orders
@@ -151,9 +142,6 @@ export default function DateRangeReport({ report }) {
 
         <div className="bg-white rounded-xl p-3 sm:p-4 border border-purple-100 shadow-sm">
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg">
-              <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
-            </div>
             <div>
               <p className="text-xs sm:text-sm font-medium text-gray-600">
                 Avg Daily
@@ -167,9 +155,7 @@ export default function DateRangeReport({ report }) {
 
         <div className="bg-white rounded-xl p-3 sm:p-4 border border-purple-100 shadow-sm">
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="p-1.5 sm:p-2 bg-green-100 rounded-lg">
-              <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
-            </div>
+            
             <div>
               <p className="text-xs sm:text-sm font-medium text-gray-600">
                 Active Days

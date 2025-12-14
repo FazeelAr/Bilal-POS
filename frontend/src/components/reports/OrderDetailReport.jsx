@@ -1,18 +1,6 @@
 import React, { useState } from "react";
-import {
-  Package,
-  Calendar,
-  User,
-  Hash,
-  ShoppingBag,
-  CreditCard,
-  Printer,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
 import { getReceiptByOrderId } from "../../api/api";
 
-// Helper function for payment status styling
 const getPaymentStatusClass = (status) => {
   switch (status?.toLowerCase()) {
     case 'paid':
@@ -59,16 +47,12 @@ export default function OrderDetailReport({
         day: "numeric",
       });
     } catch (error) {
-      console.error("Date formatting error:", error);
       return "Invalid Date";
     }
   };
 
   const safeOrders = Array.isArray(orders) ? orders : [];
-  const hasOrders = safeOrders.length > 0;
-  const hasItems = safeOrders.some(order => Array.isArray(order?.items) && order.items.length > 0);
 
-  // For mobile, we'll use a card-based layout
   const [isMobile, setIsMobile] = useState(false);
 
   React.useEffect(() => {
@@ -78,7 +62,6 @@ export default function OrderDetailReport({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Calculate totals
   const totalAmount = safeOrders.reduce(
     (sum, order) => sum + (parseFloat(order?.total || order?.amount) || 0),
     0
@@ -89,55 +72,116 @@ export default function OrderDetailReport({
     0
   );
 
-  // Handle print receipt function (same as before)
   const handlePrintReceipt = async (order) => {
-    // ... (keep the existing handlePrintReceipt function unchanged)
+    if (!order?.id) return;
+
+    const orderId = order.id;
+    setPrintingOrders(prev => ({ ...prev, [orderId]: true }));
+
+    try {
+      const response = await getReceiptByOrderId(orderId);
+
+      if (response.data && response.data.length > 0) {
+        const receipt = response.data[0];
+        const receiptUrl = `/receipt?print=true&receiptId=${receipt.id}`;
+        window.open(receiptUrl, '_blank', 'noopener,noreferrer');
+      } else {
+        const receiptPayload = {
+          items: (order.items || []).map(item => ({
+            name: item?.name || "Product",
+            qty: parseFloat(item?.quantity) || 0,
+            price: parseFloat(item?.price) || 0,
+            factor: 1,
+            lineTotal: parseFloat(item?.total || (item?.quantity * item?.price)) || 0,
+            productId: item?.id || Math.random().toString(36).substring(2, 11)
+          })),
+          total: parseFloat(order.total || order.amount) || 0,
+          createdAt: order.date || order.order_date || new Date().toISOString(),
+          customer: {
+            name: order.customer_name || order.client?.name || customerName || "Customer",
+            balance: parseFloat(customerBalance) || 0,
+            starting_balance: parseFloat(customerBalance) || 0
+          },
+          payment_amount: parseFloat(order.payment_amount) || 0,
+          payment_status: order.payment_status || 'paid',
+          balance_due: parseFloat(order.balance_due) || 0,
+          saleId: order.id
+        };
+
+        const encodedPayload = btoa(encodeURIComponent(JSON.stringify(receiptPayload)));
+        const receiptUrl = `/receipt?print=true&data=${encodedPayload}&orderId=${order.id}`;
+        window.open(receiptUrl, '_blank', 'noopener,noreferrer');
+      }
+    } catch (error) {
+      try {
+        const receiptPayload = {
+          items: (order.items || []).map(item => ({
+            name: item?.name || "Product",
+            qty: parseFloat(item?.quantity) || 0,
+            price: parseFloat(item?.price) || 0,
+            factor: 1,
+            lineTotal: parseFloat(item?.total || (item?.quantity * item?.price)) || 0,
+            productId: item?.id || Math.random().toString(36).substring(2, 11)
+          })),
+          total: parseFloat(order.total || order.amount) || 0,
+          createdAt: order.date || order.order_date || new Date().toISOString(),
+          customer: {
+            name: order.customer_name || order.client?.name || customerName || "Customer",
+            balance: parseFloat(customerBalance) || 0,
+            starting_balance: parseFloat(customerBalance) || 0
+          },
+          payment_amount: parseFloat(order.payment_amount) || 0,
+          payment_status: order.payment_status || 'paid',
+          balance_due: parseFloat(order.balance_due) || 0,
+          saleId: order.id
+        };
+
+        const encodedPayload = btoa(encodeURIComponent(JSON.stringify(receiptPayload)));
+        const receiptUrl = `/receipt?print=true&data=${encodedPayload}&orderId=${order.id}`;
+        window.open(receiptUrl, '_blank', 'noopener,noreferrer');
+      } catch (fallbackError) {
+        alert("Failed to generate receipt. Please try again.");
+      }
+    } finally {
+      setPrintingOrders(prev => ({ ...prev, [orderId]: false }));
+    }
   };
 
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2 sm:gap-0">
-        <div className="flex items-center gap-3">
-          <ShoppingBag className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
-          <div>
-            <h3 className="text-xl sm:text-2xl font-bold text-gray-800">
-              {reportType === "daily"
-                ? "Daily"
-                : reportType === "monthly"
-                  ? "Monthly"
-                  : "Date Range"}{" "}
-              Orders
-            </h3>
-            {customerName && (
-              <p className="text-xs sm:text-sm text-gray-600 mt-1">
-                Customer: <span className="font-semibold">{customerName}</span>
-              </p>
-            )}
-          </div>
+        <div>
+          <h3 className="text-xl sm:text-2xl font-bold text-gray-800">
+            {reportType === "daily"
+              ? "Daily"
+              : reportType === "monthly"
+                ? "Monthly"
+                : "Date Range"}{" "}
+            Orders
+          </h3>
+          {customerName && (
+            <p className="text-xs sm:text-sm text-gray-600 mt-1">
+              Customer: <span className="font-semibold">{customerName}</span>
+            </p>
+          )}
         </div>
         <div className="text-sm text-gray-600">
           {safeOrders.length} {safeOrders.length === 1 ? "order" : "orders"}
         </div>
       </div>
 
-      {/* Customer Balance Card */}
       {showBalance && customerBalance !== undefined && customerBalance !== null && (
         <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 sm:p-5 border border-blue-200">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-xs sm:text-sm font-medium text-gray-600">
-                  Customer Balance
-                </p>
-                <p
-                  className={`text-xl sm:text-2xl font-bold ${parseFloat(customerBalance) > 0 ? "text-red-600" : "text-green-600"}`}
-                >
-                  {formatCurrency(customerBalance)}
-                </p>
-              </div>
+            <div>
+              <p className="text-xs sm:text-sm font-medium text-gray-600">
+                Customer Balance
+              </p>
+              <p
+                className={`text-xl sm:text-2xl font-bold ${parseFloat(customerBalance) > 0 ? "text-red-600" : "text-green-600"}`}
+              >
+                {formatCurrency(customerBalance)}
+              </p>
             </div>
             <div className="text-left sm:text-right">
               <p className="text-xs sm:text-sm font-medium text-gray-600">
@@ -151,7 +195,6 @@ export default function OrderDetailReport({
         </div>
       )}
 
-      {/* Summary Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
         <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 sm:p-5 border border-purple-100">
           <p className="text-xs sm:text-sm font-medium text-gray-600 mb-1 sm:mb-2">Total Orders</p>
@@ -171,11 +214,9 @@ export default function OrderDetailReport({
         </div>
       </div>
 
-      {/* Desktop Table / Mobile Cards */}
       {isMobile ? (
-        /* Mobile Card Layout */
         <div className="space-y-3">
-          {hasOrders ? (
+          {safeOrders.length > 0 ? (
             safeOrders.map((order, index) => {
               const orderId = order?.id || `order-${index}`;
               const items = Array.isArray(order?.items) ? order.items : [];
@@ -184,15 +225,10 @@ export default function OrderDetailReport({
 
               return (
                 <div key={orderId} className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-                  {/* Order Header */}
                   <div className="flex justify-between items-start mb-3">
                     <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <Hash className="w-4 h-4 text-gray-500" />
-                        <span className="font-semibold text-gray-800">#{orderId}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Calendar className="w-3 h-3" />
+                      <div className="font-semibold text-gray-800 mb-1">#{orderId}</div>
+                      <div className="text-sm text-gray-600">
                         {formatDate(order?.date || order?.order_date)}
                       </div>
                     </div>
@@ -200,15 +236,10 @@ export default function OrderDetailReport({
                       onClick={() => setExpandedOrder(isExpanded ? null : orderId)}
                       className="p-1 hover:bg-gray-100 rounded"
                     >
-                      {isExpanded ? (
-                        <ChevronUp className="w-4 h-4" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4" />
-                      )}
+                      {isExpanded ? "▲" : "▼"}
                     </button>
                   </div>
 
-                  {/* Order Summary */}
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">Customer:</span>
@@ -230,7 +261,6 @@ export default function OrderDetailReport({
                     </div>
                   </div>
 
-                  {/* Expanded Details */}
                   {isExpanded && (
                     <div className="mt-4 pt-4 border-t border-gray-200">
                       <div className="space-y-3">
@@ -246,8 +276,7 @@ export default function OrderDetailReport({
                             {formatCurrency(order?.balance_due || 0)}
                           </span>
                         </div>
-                        
-                        {/* Items Preview */}
+
                         {items.length > 0 && (
                           <div className="mt-3">
                             <p className="text-sm font-medium text-gray-700 mb-2">Items:</p>
@@ -269,7 +298,6 @@ export default function OrderDetailReport({
                           </div>
                         )}
 
-                        {/* Print Button */}
                         <button
                           onClick={() => handlePrintReceipt(order)}
                           disabled={isPrinting}
@@ -281,10 +309,7 @@ export default function OrderDetailReport({
                               Printing...
                             </>
                           ) : (
-                            <>
-                              <Printer className="w-4 h-4" />
-                              Print Receipt
-                            </>
+                            <>Print Receipt</>
                           )}
                         </button>
                       </div>
@@ -295,42 +320,36 @@ export default function OrderDetailReport({
             })
           ) : (
             <div className="text-center py-8 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border border-purple-100">
-              <ShoppingBag className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-3 sm:mb-4" />
-              <h3 className="text-lg sm:text-xl font-semibold text-gray-700 mb-2">No orders found</h3>
+              <h3 className="text-xl font-semibold text-gray-700 mb-2">No orders found</h3>
               <p className="text-gray-500 text-sm">No orders match the selected criteria.</p>
             </div>
           )}
         </div>
       ) : (
-        /* Desktop Table Layout */
         <div className="overflow-x-auto">
-          {hasOrders ? (
+          {safeOrders.length > 0 ? (
             <table className="w-full">
               <thead>
                 <tr className="border-b-2 border-purple-100">
-                  <th className="py-3 px-4 text-left text-xs sm:text-sm font-bold text-gray-700">
-                    <Hash className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1 sm:mr-2" />
+                  <th className="py-3 px-4 text-left text-sm font-bold text-gray-700">
                     Order ID
                   </th>
-                  <th className="py-3 px-4 text-left text-xs sm:text-sm font-bold text-gray-700">
-                    <User className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1 sm:mr-2" />
+                  <th className="py-3 px-4 text-left text-sm font-bold text-gray-700">
                     Customer
                   </th>
-                  <th className="py-3 px-4 text-left text-xs sm:text-sm font-bold text-gray-700">
-                    <Calendar className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1 sm:mr-2" />
+                  <th className="py-3 px-4 text-left text-sm font-bold text-gray-700">
                     Date
                   </th>
-                  <th className="py-3 px-4 text-left text-xs sm:text-sm font-bold text-gray-700">
-                    <Package className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1 sm:mr-2" />
+                  <th className="py-3 px-4 text-left text-sm font-bold text-gray-700">
                     Items
                   </th>
-                  <th className="py-3 px-4 text-left text-xs sm:text-sm font-bold text-gray-700">
+                  <th className="py-3 px-4 text-left text-sm font-bold text-gray-700">
                     Amount
                   </th>
-                  <th className="py-3 px-4 text-left text-xs sm:text-sm font-bold text-gray-700">
+                  <th className="py-3 px-4 text-left text-sm font-bold text-gray-700">
                     Status
                   </th>
-                  <th className="py-3 px-4 text-left text-xs sm:text-sm font-bold text-gray-700">
+                  <th className="py-3 px-4 text-left text-sm font-bold text-gray-700">
                     Actions
                   </th>
                 </tr>
@@ -347,29 +366,29 @@ export default function OrderDetailReport({
                       className="border-b border-gray-100 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 transition-colors"
                     >
                       <td className="py-3 px-4">
-                        <span className="font-mono font-semibold text-gray-800 text-xs sm:text-sm">
+                        <span className="font-mono font-semibold text-gray-800 text-sm">
                           #{orderId}
                         </span>
                       </td>
                       <td className="py-3 px-4">
-                        <span className="font-medium text-gray-800 text-xs sm:text-sm">
+                        <span className="font-medium text-gray-800 text-sm">
                           {order?.customer_name || order?.client?.name || "N/A"}
                         </span>
                       </td>
                       <td className="py-3 px-4">
-                        <span className="text-gray-700 text-xs sm:text-sm">
+                        <span className="text-gray-700 text-sm">
                           {formatDate(order?.date || order?.order_date)}
                         </span>
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex flex-col">
-                          <span className="font-medium text-xs sm:text-sm">
+                          <span className="font-medium text-sm">
                             {(order?.items_count || items.length || 0)} items
                           </span>
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <span className="font-bold text-gray-900 text-xs sm:text-sm">
+                        <span className="font-bold text-gray-900 text-sm">
                           {formatCurrency(order?.total || order?.amount)}
                         </span>
                       </td>
@@ -382,20 +401,17 @@ export default function OrderDetailReport({
                         <button
                           onClick={() => handlePrintReceipt(order)}
                           disabled={isPrinting}
-                          className={`px-2 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg text-xs sm:text-sm font-medium hover:from-blue-600 hover:to-cyan-600 transition-colors flex items-center gap-1 ${isPrinting ? 'opacity-50' : ''}`}
+                          className={`px-3 py-1.5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg text-sm font-medium hover:from-blue-600 hover:to-cyan-600 transition-colors flex items-center gap-1 ${isPrinting ? 'opacity-50' : ''}`}
                           title="Print Receipt"
                           type="button"
                         >
                           {isPrinting ? (
                             <>
-                              <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white"></div>
-                              <span className="hidden sm:inline">Printing...</span>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                              <span>Printing...</span>
                             </>
                           ) : (
-                            <>
-                              <Printer className="w-3 h-3 sm:w-4 sm:h-4" />
-                              <span className="hidden sm:inline">Print</span>
-                            </>
+                            <span>Print</span>
                           )}
                         </button>
                       </td>
@@ -407,12 +423,12 @@ export default function OrderDetailReport({
                 <tr className="bg-gradient-to-r from-purple-50 to-pink-50 border-t-2 border-purple-200">
                   <td
                     colSpan="4"
-                    className="py-3 sm:py-4 px-4 text-base sm:text-lg font-bold text-gray-900"
+                    className="py-4 px-4 text-lg font-bold text-gray-900"
                   >
                     Total ({safeOrders.length} orders)
                   </td>
-                  <td className="py-3 sm:py-4 px-4" colSpan="3">
-                    <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  <td className="py-4 px-4" colSpan="3">
+                    <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
                       {formatCurrency(totalAmount)}
                     </span>
                   </td>
@@ -420,9 +436,8 @@ export default function OrderDetailReport({
               </tfoot>
             </table>
           ) : (
-            <div className="text-center py-8 sm:py-12 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border border-purple-100">
-              <ShoppingBag className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-3 sm:mb-4" />
-              <h3 className="text-lg sm:text-xl font-semibold text-gray-700 mb-2">No orders found</h3>
+            <div className="text-center py-12 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border border-purple-100">
+              <h3 className="text-xl font-semibold text-gray-700 mb-2">No orders found</h3>
               <p className="text-gray-500 text-sm">No orders match the selected criteria.</p>
             </div>
           )}
