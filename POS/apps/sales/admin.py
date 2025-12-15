@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Client, Order, OrderItem
+from .models import Client, Order, OrderItem, ReceiptItem, Receipt
 
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
@@ -10,7 +10,7 @@ class ClientAdmin(admin.ModelAdmin):
 
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
-    extra = 1
+    extra = 0
     fields = ['item', 'quantity', 'price']
     readonly_fields = ['total_price']
     
@@ -22,6 +22,7 @@ class OrderItemInline(admin.TabularInline):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
+    list_select_related = ['client']  # Add this line
     list_display = ['id', 'client', 'total', 'payment_amount', 'payment_status', 'balance_due', 'date', 'item_count']
     list_filter = ['date', 'payment_status', 'client']
     search_fields = ['client__name', 'id']
@@ -54,6 +55,9 @@ class OrderItemAdmin(admin.ModelAdmin):
     def total_price(self, obj):
         return obj.quantity * obj.price
     total_price.short_description = 'Total'
+
+admin.site.register(ReceiptItem)
+admin.site.register(Receipt)
 
 # Optional: If you want to customize the admin site header
 admin.site.site_header = "Bilal Poultry Traders Admin"

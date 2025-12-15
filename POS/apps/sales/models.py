@@ -109,10 +109,12 @@ class Receipt(models.Model):
     
     order = models.OneToOneField(
         Order,
-        on_delete=models.PROTECT,  # Protect receipt if order is deleted
+        on_delete=models.CASCADE,  # Changed from PROTECT to CASCADE
         related_name='receipt',
         db_column='order_id'
     )
+    
+    # ... rest of your code remains the same
     
     customer = models.ForeignKey(
         Client,
