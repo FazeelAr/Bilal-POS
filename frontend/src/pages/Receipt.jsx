@@ -24,13 +24,12 @@ export default function Receipt() {
     const receiptId = searchParams.get('receiptId');
 
     if (isPrintMode && receiptId) {
-      // Fetch receipt from API using receipt ID
       (async () => {
         try {
           setIsReprinting(true);
           const response = await getReceipt(receiptId);
           setUrlData(response.data);
-          
+
           // Increment reprint count
           await reprintReceipt(receiptId);
         } catch (error) {
@@ -245,30 +244,12 @@ export default function Receipt() {
     document.head.appendChild(style);
 
     // Send to backend receipt endpoint (only for new orders from POS)
-    (async () => {
-      try {
-        const receiptData = urlData || locationPayload;
-
-        // Only send to backend if it's a new order (not a reprint from reports)
-        if (receiptData && !urlData && !receiptId) {
-          const postData = {
-            items: receiptData.items,
-            total: receiptData.total,
-            createdAt: receiptData.createdAt,
-            customer: receiptData.customer,
-            ...(receiptData.payment_amount && { paid: receiptData.payment_amount }),
-            ...(receiptData.balance_due !== undefined && {
-              change: receiptData.balance_due,
-            }),
-          };
-
-          const res = await apiPost("sales/receipt/", postData);
-          setServerResp(res && res.data ? res.data : null);
-        }
-      } catch (err) {
-        console.warn("Receipt POST failed", err);
-      }
-    })();
+    // Receipt is already created by the backend when order was created
+    // Just use the backend response that was passed in location.state
+    if (backendResponse && !urlData && !receiptId) {
+      // Use the backend order response which contains receipt info
+      setServerResp(backendResponse);
+    }
 
     // Auto-print with delay (only if print=true in URL or from POS)
     if ((isPrintMode || locationPayload) && !loading) {
@@ -292,9 +273,9 @@ export default function Receipt() {
   const payload = urlData || locationPayload;
   const receiptId = searchParams.get('receiptId');
   const isFromAPI = receiptId && urlData;
-  
-  const responseData = urlData ? { 
-    id: isFromAPI ? payload.receipt_number : searchParams.get('orderId') || payload?.saleId 
+
+  const responseData = urlData ? {
+    id: isFromAPI ? payload.receipt_number : searchParams.get('orderId') || payload?.saleId
   } : backendResponse;
 
   if (loading) {
@@ -330,47 +311,47 @@ export default function Receipt() {
 
   // Handle both old and new data structures
   const isNewStructure = payload.current_bill_amount !== undefined;
-  
+
   // Extract data based on structure
-  const items = isNewStructure 
+  const items = isNewStructure
     ? (payload.items || []).map(item => ({
-        name: item.product_name,
-        qty: item.quantity,
-        price: item.price_per_unit,
-        factor: 1,
-        lineTotal: item.total,
-        productId: item.product_id
-      }))
+      name: item.product_name,
+      qty: item.quantity,
+      price: item.price_per_unit,
+      factor: 1,
+      lineTotal: item.total,
+      productId: item.product_id
+    }))
     : (payload.items || []);
-  
-  const currentBillAmount = isNewStructure 
+
+  const currentBillAmount = isNewStructure
     ? parseFloat(payload.current_bill_amount) || 0
     : parseFloat(payload.total) || 0;
-  
+
   const paymentMade = isNewStructure
     ? parseFloat(payload.payment_made) || 0
     : parseFloat(payload.payment_amount) || 0;
-  
+
   const previousBalance = isNewStructure
     ? parseFloat(payload.previous_balance) || 0
     : parseFloat(payload.customer?.starting_balance || payload.customer?.balance || 0);
-  
+
   const thisOrderBalanceDue = isNewStructure
     ? parseFloat(payload.this_bill_balance) || 0
     : parseFloat(payload.balance_due) || 0;
-  
+
   const updatedBalance = isNewStructure
     ? parseFloat(payload.updated_balance) || 0
     : previousBalance + (currentBillAmount - paymentMade);
-  
+
   const paymentStatus = isNewStructure
     ? payload.payment_status
     : payload.payment_status || "paid";
-  
+
   const customerName = isNewStructure
     ? payload.customer_name
     : (payload.customer && typeof payload.customer === "object" ? payload.customer.name : payload.customer);
-  
+
   const receiptDate = isNewStructure
     ? payload.receipt_date || payload.createdAt
     : payload.createdAt;
@@ -471,7 +452,8 @@ export default function Receipt() {
                 </div>
                 <div className="sale-id text-xs text-center text-gray-700 mb-1">
                   <span className="font-semibold">Invoice #:</span>{" "}
-                  {responseData?.id ||
+                  {backendResponse?.receipt_number ||  // ← Use receipt_number from backend
+                    responseData?.id ||
                     payload.receipt_number ||
                     serverResp?.id ||
                     payload.saleId ||
@@ -645,7 +627,7 @@ export default function Receipt() {
               Thank You For Your Business!
             </div>
             <div className="text-xs text-center text-gray-500 mt-1">
-              {receiptId || urlData 
+              {receiptId || urlData
                 ? `Reprinted Receipt ${payload.reprint_count ? `(Reprint ${payload.reprint_count + 1})` : ''}`
                 : "Please keep this receipt for your records"}
             </div>

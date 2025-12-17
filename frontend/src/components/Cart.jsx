@@ -72,24 +72,27 @@ export default function Cart() {
       let payment_status = "partial";
       if (payment === 0) {
         payment_status = "unpaid";
-      } else if (payment === grandTotal) {
-        payment_status = "paid";
+      } else if (payment >= grandTotal) {  // Changed to >=
+        payment_status = "paid";  // Always send "paid" even for overpayment
       } else if (payment < grandTotal) {
         payment_status = "partial";
-      } else {
-        payment_status = "overpaid";
       }
 
       const balance_due = grandTotal - payment;
 
       const payload = {
-        items,
-        customer: currentCustomer.id,
-        payment_amount: payment,
+        items: cart.map((it) => ({
+          product: String(it.productId),  // Convert to string
+          quantity: String(Number(it.qty).toFixed(2)),  // String with 2 decimals
+          factor: String(Number(it.factor || 1).toFixed(2)),  // String with 2 decimals
+          // price: (Number(it.price) || 0) * (Number(it.factor) || 1), // Remove price - let backend calculate
+        })),
+        customer: String(currentCustomer.id),  // Convert to string
+        payment_amount: String(parseFloat(paymentAmount || 0).toFixed(2)),  // String with 2 decimals
         payment_method: "cash",
         payment_status: payment_status,
-        total_amount: grandTotal,
-        balance_due: balance_due,
+        total_amount: String(grandTotal.toFixed(2)),  // String with 2 decimals
+        balance_due: String(Math.max(0, grandTotal - parseFloat(paymentAmount || 0)).toFixed(2)),  // String with 2 decimals
       };
 
       let backendOrder = null;
@@ -219,10 +222,9 @@ export default function Cart() {
 
   // Cart Overlay Background for mobile
   const MobileOverlay = () => (
-    <div 
-      className={`lg:hidden fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ${
-        isCartOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
-      }`}
+    <div
+      className={`lg:hidden fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ${isCartOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
       onClick={() => setIsCartOpen(false)}
     />
   );
@@ -231,10 +233,10 @@ export default function Cart() {
     <>
       {/* Mobile Floating Cart Button */}
       <MobileCartButton />
-      
+
       {/* Mobile Overlay */}
       <MobileOverlay />
-      
+
       {/* Cart Panel */}
       <div className={`
         lg:w-full lg:min-h-full lg:bg-linear-to-br lg:from-white lg:to-purple-50 lg:p-4 lg:rounded-2xl lg:shadow-xl lg:border lg:border-purple-200
@@ -300,11 +302,10 @@ export default function Cart() {
                 return (
                   <div
                     key={it.productPriceId}
-                    className={`relative p-3 rounded-xl shadow-sm transition-all duration-200 ${
-                      hasError
-                        ? "bg-linear-to-r from-red-50 to-pink-50 border border-red-300"
-                        : "bg-white border border-purple-100 hover:shadow-md hover:border-purple-200"
-                    }`}
+                    className={`relative p-3 rounded-xl shadow-sm transition-all duration-200 ${hasError
+                      ? "bg-linear-to-r from-red-50 to-pink-50 border border-red-300"
+                      : "bg-white border border-purple-100 hover:shadow-md hover:border-purple-200"
+                      }`}
                   >
                     {/* Error Indicator */}
                     {hasError && (
@@ -315,9 +316,8 @@ export default function Cart() {
 
                     {/* Product Name */}
                     <div
-                      className={`font-semibold text-sm mb-1 flex items-center gap-1 ${
-                        hasError ? "text-red-700" : "text-gray-800"
-                      }`}
+                      className={`font-semibold text-sm mb-1 flex items-center gap-1 ${hasError ? "text-red-700" : "text-gray-800"
+                        }`}
                     >
                       <span className="line-clamp-1">{it.name}</span>
                       {hasError && (
@@ -337,9 +337,8 @@ export default function Cart() {
                       {/* Quantity Input */}
                       <div>
                         <label
-                          className={`text-[10px] font-bold mb-0.5 block ${
-                            hasInvalidQuantity ? "text-red-600" : "text-gray-600"
-                          }`}
+                          className={`text-[10px] font-bold mb-0.5 block ${hasInvalidQuantity ? "text-red-600" : "text-gray-600"
+                            }`}
                         >
                           Weight (Kg)
                         </label>
@@ -351,11 +350,10 @@ export default function Cart() {
                           onChange={(e) =>
                             updateQuantity(it.productPriceId, e.target.value)
                           }
-                          className={`w-full p-1.5 rounded-lg text-xs font-semibold transition-all ${
-                            hasInvalidQuantity
-                              ? "border border-red-500 bg-red-50 text-red-700 focus:ring-1 focus:ring-red-200"
-                              : "border border-purple-200 bg-white focus:border-purple-400 focus:ring-1 focus:ring-purple-100"
-                          }`}
+                          className={`w-full p-1.5 rounded-lg text-xs font-semibold transition-all ${hasInvalidQuantity
+                            ? "border border-red-500 bg-red-50 text-red-700 focus:ring-1 focus:ring-red-200"
+                            : "border border-purple-200 bg-white focus:border-purple-400 focus:ring-1 focus:ring-purple-100"
+                            }`}
                           placeholder="0"
                         />
                         {hasInvalidQuantity && (
@@ -368,9 +366,8 @@ export default function Cart() {
                       {/* Factor Input */}
                       <div>
                         <label
-                          className={`text-[10px] font-bold mb-0.5 block ${
-                            hasInvalidFactor ? "text-red-600" : "text-gray-600"
-                          }`}
+                          className={`text-[10px] font-bold mb-0.5 block ${hasInvalidFactor ? "text-red-600" : "text-gray-600"
+                            }`}
                         >
                           Factor
                         </label>
@@ -382,11 +379,10 @@ export default function Cart() {
                           onChange={(e) =>
                             updateFactor(it.productPriceId, e.target.value)
                           }
-                          className={`w-full p-1.5 rounded-lg text-xs font-semibold transition-all ${
-                            hasInvalidFactor
-                              ? "border border-red-500 bg-red-50 text-red-700 focus:ring-1 focus:ring-red-200"
-                              : "border border-purple-200 bg-white focus:border-purple-400 focus:ring-1 focus:ring-purple-100"
-                          }`}
+                          className={`w-full p-1.5 rounded-lg text-xs font-semibold transition-all ${hasInvalidFactor
+                            ? "border border-red-500 bg-red-50 text-red-700 focus:ring-1 focus:ring-red-200"
+                            : "border border-purple-200 bg-white focus:border-purple-400 focus:ring-1 focus:ring-purple-100"
+                            }`}
                           placeholder="0"
                         />
                         {hasInvalidFactor && (
@@ -404,11 +400,10 @@ export default function Cart() {
                           Total
                         </div>
                         <div
-                          className={`font-bold text-sm ${
-                            hasError
-                              ? "text-red-600"
-                              : "bg-linear-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent"
-                          }`}
+                          className={`font-bold text-sm ${hasError
+                            ? "text-red-600"
+                            : "bg-linear-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent"
+                            }`}
                         >
                           Rs {itemTotal(it).toFixed(2)}
                         </div>
@@ -431,11 +426,10 @@ export default function Cart() {
         {/* Checkout Footer - Compact on mobile */}
         {cart.length > 0 && (
           <div
-            className={`absolute bottom-0 left-0 right-0 p-3 lg:p-4 rounded-t-xl lg:rounded-b-2xl shadow-lg backdrop-blur-md transition-all duration-200 ${
-              isCheckoutDisabled()
-                ? "bg-linear-to-r from-gray-400 to-gray-500"
-                : "bg-linear-to-r from-purple-600 via-pink-600 to-purple-600"
-            }`}
+            className={`absolute bottom-0 left-0 right-0 p-3 lg:p-4 rounded-t-xl lg:rounded-b-2xl shadow-lg backdrop-blur-md transition-all duration-200 ${isCheckoutDisabled()
+              ? "bg-linear-to-r from-gray-400 to-gray-500"
+              : "bg-linear-to-r from-purple-600 via-pink-600 to-purple-600"
+              }`}
           >
             <div className="space-y-2 lg:space-y-3">
               {/* Payment Input Section - Compact on mobile */}
@@ -509,14 +503,13 @@ export default function Cart() {
                     !isPaymentAmountValid() ||
                     processingPayment
                   }
-                  className={`flex-1 py-2.5 lg:py-3 px-3 lg:px-4 rounded-lg lg:rounded-xl border-none font-semibold text-xs lg:text-sm shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${
-                    isCheckoutDisabled() ||
+                  className={`flex-1 py-2.5 lg:py-3 px-3 lg:px-4 rounded-lg lg:rounded-xl border-none font-semibold text-xs lg:text-sm shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${isCheckoutDisabled() ||
                     !paymentAmount ||
                     !isPaymentAmountValid() ||
                     processingPayment
-                      ? "bg-gray-300 text-gray-500 cursor-not-allowed opacity-70"
-                      : "bg-linear-to-r from-green-500 to-emerald-600 text-white cursor-pointer hover:scale-105 hover:shadow-xl"
-                  }`}
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed opacity-70"
+                    : "bg-linear-to-r from-green-500 to-emerald-600 text-white cursor-pointer hover:scale-105 hover:shadow-xl"
+                    }`}
                 >
                   {processingPayment ? (
                     <>
