@@ -46,7 +46,8 @@ class OrderCreateSerializer(serializers.Serializer):
     payment_status = serializers.CharField(required=True)
     total_amount = serializers.DecimalField(max_digits=10, decimal_places=2, required=True)
     balance_due = serializers.DecimalField(max_digits=10, decimal_places=2, required=True)
-    
+    date = serializers.DateField(required=False)  # ADD THIS LINE - optional date field
+
     def validate_items(self, value):
         if not value:
             raise serializers.ValidationError("Order must have at least one item")
@@ -107,7 +108,7 @@ class OrderCreateSerializer(serializers.Serializer):
         order = Order.objects.create(
             client=customer,
             total=order_total,
-            date=date.today(),
+            date=validated_data.get('date', date.today()),  # CHANGE THIS LINE - use provided date or today
             payment_amount=payment_amount,
             payment_method=payment_method,
             payment_status=payment_status,

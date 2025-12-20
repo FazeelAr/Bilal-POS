@@ -14,7 +14,7 @@ export default function Product() {
   const { addToCart } = useCart();
 
   // Constants
-  const SPECIAL_GROUP_IDS = [4, 6, 7, 11];
+  const SPECIAL_GROUP_IDS = [4, 6, 7, 5];
   const PERMANENTLY_EXCLUDED_IDS = [12];
   const currentIdNum = useMemo(() => Number(id), [id]);
   

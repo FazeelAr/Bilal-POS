@@ -6,6 +6,7 @@ import CartContext from "./CartContext";
 export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
   const [currentCustomer, setCurrentCustomer] = useState(null);
+  const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentAmount, setPaymentAmount] = useState(0);
   const [paymentStatus, setPaymentStatus] = useState("paid");
   const navigate = useNavigate();
@@ -106,16 +107,17 @@ export function CartProvider({ children }) {
       customer: currentCustomer.id,
       items: items,
       payment_amount: paymentAmt,
-      payment_method: "cash", // Required field
+      payment_method: "cash",
       payment_status: paymentStat,
       total_amount: grandTotal,
-      balance_due: balanceDue
+      balance_due: balanceDue,
+      date: orderDate, // Add date field
     };
 
     let backendOrder = null;
 
     try {
-      const res = await apiPost("sales/orders/", payload);
+      const res = await apiPost("sales/orders/create/", payload);
       backendOrder = res.data;
     } catch (err) {
       console.error("Checkout failed", err);
@@ -142,6 +144,7 @@ export function CartProvider({ children }) {
       items: itemsPayload,
       total: grandTotal,
       createdAt: new Date().toISOString(),
+      orderDate: orderDate, // Add order date
       customer: currentCustomer,
     };
 
@@ -175,7 +178,9 @@ export function CartProvider({ children }) {
         paymentAmount,
         setPaymentAmount,
         paymentStatus,
-        setPaymentStatus
+        setPaymentStatus,
+        orderDate,
+        setOrderDate, // Add to context
       }}
     >
       {children}

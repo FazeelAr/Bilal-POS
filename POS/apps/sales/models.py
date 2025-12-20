@@ -39,7 +39,7 @@ class Order(models.Model):
         related_name='orders'
     )
     total = models.DecimalField(max_digits=10, decimal_places=2)
-    date = models.DateField(auto_now_add=True)
+    date = models.DateField()
     
     # Payment fields
     payment_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)

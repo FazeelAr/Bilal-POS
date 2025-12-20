@@ -267,7 +267,7 @@ export default function Receipt() {
         if (s && s.parentNode) s.parentNode.removeChild(s);
       };
     }
-  }, [locationPayload, navigate, searchParams, urlData, loading]);
+  }, [locationPayload, navigate, searchParams, urlData, loading, backendResponse]);
 
   // Use URL data if available, otherwise use location state
   const payload = urlData || locationPayload;
@@ -352,9 +352,12 @@ export default function Receipt() {
     ? payload.customer_name
     : (payload.customer && typeof payload.customer === "object" ? payload.customer.name : payload.customer);
 
-  const receiptDate = isNewStructure
-    ? payload.receipt_date || payload.createdAt
-    : payload.createdAt;
+  // IMPORTANT FIX: Use orderDate from payload if available (for new orders with custom date)
+  const receiptDate = payload.orderDate 
+    ? payload.orderDate + 'T' + new Date(payload.createdAt).toTimeString().split(' ')[0] 
+    : (isNewStructure
+      ? payload.receipt_date || payload.createdAt
+      : payload.createdAt);
 
   // Determine if it's a partial or full payment
   const isFullPayment = paymentStatus === "paid";
@@ -452,7 +455,7 @@ export default function Receipt() {
                 </div>
                 <div className="sale-id text-xs text-center text-gray-700 mb-1">
                   <span className="font-semibold">Invoice #:</span>{" "}
-                  {backendResponse?.receipt_number ||  // ← Use receipt_number from backend
+                  {backendResponse?.receipt_number || 
                     responseData?.id ||
                     payload.receipt_number ||
                     serverResp?.id ||

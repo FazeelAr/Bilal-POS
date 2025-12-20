@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useCart } from "../context/useCart";
-import { ShoppingCart, Trash2, AlertCircle, CheckCircle, X, DollarSign } from "lucide-react";
+import { ShoppingCart, Trash2, AlertCircle, CheckCircle, X, DollarSign, Calendar } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { apiPost } from "../api/api";
 
@@ -16,6 +16,8 @@ export default function Cart() {
     currentCustomer,
     clearCart,
     clearCustomer,
+    orderDate,
+    setOrderDate,
   } = useCart();
 
   const [paymentAmount, setPaymentAmount] = useState("");
@@ -62,18 +64,11 @@ export default function Cart() {
     setProcessingPayment(true);
 
     try {
-      const items = cart.map((it) => ({
-        product: it.productId,
-        quantity: Number(it.qty),
-        factor: Number(it.factor) || 1,
-        price: (Number(it.price) || 0) * (Number(it.factor) || 1),
-      }));
-
       let payment_status = "partial";
       if (payment === 0) {
         payment_status = "unpaid";
-      } else if (payment >= grandTotal) {  // Changed to >=
-        payment_status = "paid";  // Always send "paid" even for overpayment
+      } else if (payment >= grandTotal) {
+        payment_status = "paid";
       } else if (payment < grandTotal) {
         payment_status = "partial";
       }
@@ -82,17 +77,17 @@ export default function Cart() {
 
       const payload = {
         items: cart.map((it) => ({
-          product: String(it.productId),  // Convert to string
-          quantity: String(Number(it.qty).toFixed(2)),  // String with 2 decimals
-          factor: String(Number(it.factor || 1).toFixed(2)),  // String with 2 decimals
-          // price: (Number(it.price) || 0) * (Number(it.factor) || 1), // Remove price - let backend calculate
+          product: String(it.productId),
+          quantity: String(Number(it.qty).toFixed(2)),
+          factor: String(Number(it.factor || 1).toFixed(2)),
         })),
-        customer: String(currentCustomer.id),  // Convert to string
-        payment_amount: String(parseFloat(paymentAmount || 0).toFixed(2)),  // String with 2 decimals
+        customer: String(currentCustomer.id),
+        payment_amount: String(parseFloat(paymentAmount || 0).toFixed(2)),
         payment_method: "cash",
         payment_status: payment_status,
-        total_amount: String(grandTotal.toFixed(2)),  // String with 2 decimals
-        balance_due: String(Math.max(0, grandTotal - parseFloat(paymentAmount || 0)).toFixed(2)),  // String with 2 decimals
+        total_amount: String(grandTotal.toFixed(2)),
+        balance_due: String(Math.max(0, grandTotal - parseFloat(paymentAmount || 0)).toFixed(2)),
+        date: orderDate || new Date().toISOString().split('T')[0], // Add date field
       };
 
       let backendOrder = null;
@@ -102,7 +97,8 @@ export default function Cart() {
         backendOrder = res.data;
       } catch (err) {
         console.error("Payment checkout failed", err);
-        alert("Payment failed. Please try again or contact support.");
+        console.error("Error details:", err.response?.data);
+        alert(`Payment failed: ${err.response?.data ? JSON.stringify(err.response.data) : 'Please try again or contact support.'}`);
         setProcessingPayment(false);
         return;
       }
@@ -127,6 +123,7 @@ export default function Cart() {
         items: itemsPayload,
         total: grandTotal,
         createdAt: new Date().toISOString(),
+        orderDate: orderDate || new Date().toISOString().split('T')[0], // Add order date to receipt
         customer: currentCustomer,
         payment_amount: payment,
         balance_due: balance_due,
@@ -144,9 +141,6 @@ export default function Cart() {
         case "unpaid":
           successMessage = "Order created successfully (unpaid)!";
           break;
-        case "overpaid":
-          successMessage = "Payment completed with change due!";
-          break;
         default:
           successMessage = "Transaction completed!";
       }
@@ -161,6 +155,9 @@ export default function Cart() {
 
       clearCart();
       clearCustomer();
+      if (setOrderDate) {
+        setOrderDate(new Date().toISOString().split('T')[0]); // Reset to today
+      }
     } catch (err) {
       console.error("Payment error", err);
       alert(err.response?.data?.message || "Payment failed. Please try again.");
@@ -229,6 +226,16 @@ export default function Cart() {
     />
   );
 
+  // Format date for display
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
   return (
     <>
       {/* Mobile Floating Cart Button */}
@@ -263,6 +270,12 @@ export default function Cart() {
               <p className="text-xs text-gray-500 m-0">
                 {cart.length} {cart.length === 1 ? "item" : "items"}
               </p>
+              {orderDate && (
+                <p className="text-xs text-purple-600 font-medium m-0 mt-1 flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  {formatDate(orderDate)}
+                </p>
+              )}
             </div>
           </div>
           <div className="text-right">
@@ -274,7 +287,7 @@ export default function Cart() {
         </div>
 
         {/* Cart Content */}
-        <div className="h-[calc(100vh-300px)] lg:h-[calc(100vh-350px)] overflow-y-auto pr-1 sm:pr-2">
+        <div className="h-[calc(100vh-320px)] lg:h-[calc(100vh-380px)] overflow-y-auto pr-1 sm:pr-2">
           {cart.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-4">
               <div className="w-16 h-16 bg-linear-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -432,7 +445,22 @@ export default function Cart() {
               }`}
           >
             <div className="space-y-2 lg:space-y-3">
-              {/* Payment Input Section - Compact on mobile */}
+              {/* Order Date Display */}
+              {orderDate && (
+                <div className="flex items-center justify-between p-2 bg-white/10 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-white" />
+                    <span className="text-white text-xs font-medium">
+                      Order Date:
+                    </span>
+                  </div>
+                  <span className="text-white font-semibold text-sm">
+                    {orderDate}
+                  </span>
+                </div>
+              )}
+
+              {/* Payment Input Section */}
               <div className="flex items-center gap-2">
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
@@ -470,7 +498,7 @@ export default function Cart() {
                       className="w-full pl-10 pr-3 py-2 rounded-lg bg-white/20 text-white placeholder-white/50 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent text-sm"
                     />
                   </div>
-                  {/* Payment status indicator - compact on mobile */}
+                  {/* Payment status indicator */}
                   {isPaymentAmountValid() && paymentAmount !== "" && (
                     <div className="mt-1 text-white/70 text-[10px] font-medium truncate">
                       {getPaymentStatusText()}
@@ -479,7 +507,7 @@ export default function Cart() {
                 </div>
               </div>
 
-              {/* Change Display - Only show when there's change */}
+              {/* Change Display */}
               {changeAmount > 0 && (
                 <div className="p-2 bg-linear-to-r from-green-500/20 to-emerald-500/20 rounded-lg border border-green-400/30">
                   <div className="flex justify-between items-center">
@@ -527,7 +555,7 @@ export default function Cart() {
                 </button>
               </div>
 
-              {/* Status indicator - Small and at bottom */}
+              {/* Status indicator */}
               <div className="text-center">
                 {isCheckoutDisabled() ? (
                   <div className="flex items-center justify-center gap-1 text-[10px] text-white/90 font-semibold">
