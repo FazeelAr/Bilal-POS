@@ -1,4 +1,5 @@
 from django.db import models
+from datetime import date
 from django.utils import timezone  # Added import
 
 
@@ -39,7 +40,7 @@ class Order(models.Model):
         related_name='orders'
     )
     total = models.DecimalField(max_digits=10, decimal_places=2)
-    date = models.DateField()
+    date = models.DateField(default=date.today)
     
     # Payment fields
     payment_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)

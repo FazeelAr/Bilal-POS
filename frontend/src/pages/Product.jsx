@@ -7,7 +7,7 @@ export default function Product() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
-  const [allProducts, setAllProducts] = useState([]); // Store all products
+  const [allProducts, setAllProducts] = useState([]);
   const [price, setPrice] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -54,9 +54,9 @@ export default function Product() {
       return [];
     }
     
-    // If product is special, return all special group IDs (excluding excluded ones)
+    // If product is special, ONLY update this specific ID
     if (isSpecialProduct) {
-      return SPECIAL_GROUP_IDS.filter(id => !PERMANENTLY_EXCLUDED_IDS.includes(id));
+      return [currentIdNum]; // Only update the current product
     }
     
     // For regular products, get all IDs except special and excluded ones
@@ -95,7 +95,14 @@ export default function Product() {
       }
 
       await updateProductPrices(idsToUpdate, priceNum);
-      alert("Price updated successfully!");
+      
+      // Show appropriate message based on product type
+      if (isSpecialProduct) {
+        alert(`Price updated for product ID ${currentIdNum} only!`);
+      } else {
+        alert("All regular product prices updated successfully!");
+      }
+      
       navigate("/pos");
     } catch (err) {
       console.error("Failed to update price", err);
@@ -130,7 +137,12 @@ export default function Product() {
   return (
     <div className="p-5">
       <h2 className="text-2xl font-bold text-gray-800 mb-4">
-        {isExcludedProduct ? "View Product (Read-only)" : "Edit Product"}
+        {isExcludedProduct 
+          ? "View Product (Read-only)" 
+          : isSpecialProduct 
+            ? "Edit Special Product" 
+            : "Edit Product (Updates All Regular Products)"
+        }
       </h2>
       
       <div className="max-w-[520px] bg-white p-4 rounded-lg shadow-md">
@@ -138,6 +150,27 @@ export default function Product() {
           <strong className="text-gray-700">Name:</strong>
           <div className="mt-1.5 text-gray-800">{product?.product_name}</div>
         </div>
+        
+        <div className="mb-3">
+          <strong className="text-gray-700">Product ID:</strong>
+          <div className="mt-1.5 text-gray-800">{currentIdNum}</div>
+        </div>
+
+        {isSpecialProduct && (
+          <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded">
+            <p className="text-yellow-700 text-sm">
+              ⚠️ <strong>Special Product:</strong> Price changes will only affect this product.
+            </p>
+          </div>
+        )}
+        
+        {!isSpecialProduct && !isExcludedProduct && (
+          <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded">
+            <p className="text-blue-700 text-sm">
+              ℹ️ <strong>Regular Product:</strong> Price changes will affect ALL regular products.
+            </p>
+          </div>
+        )}
 
         <div className="mb-3">
           <label className="block mb-1.5 text-gray-700 font-medium">
@@ -153,9 +186,17 @@ export default function Product() {
             disabled={isExcludedProduct}
             className={`p-2 w-full rounded-md border ${isExcludedProduct ? 'bg-gray-100' : ''} border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500`}
           />
-          {isExcludedProduct && (
+          {isExcludedProduct ? (
             <p className="text-sm text-gray-500 mt-1">
               Price cannot be changed for this product
+            </p>
+          ) : isSpecialProduct ? (
+            <p className="text-sm text-gray-500 mt-1">
+              This price change will only affect this product
+            </p>
+          ) : (
+            <p className="text-sm text-gray-500 mt-1">
+              This price change will affect ALL regular products
             </p>
           )}
         </div>
@@ -168,7 +209,7 @@ export default function Product() {
             className="py-2 px-3.5 rounded-md bg-indigo-500 text-white border-none font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
             title={isExcludedProduct ? "Price cannot be changed for this product" : ""}
           >
-            {saving ? "Saving..." : "Save"}
+            {saving ? "Saving..." : isSpecialProduct ? "Save This Product" : "Save All Regular Products"}
           </button>
 
           <button

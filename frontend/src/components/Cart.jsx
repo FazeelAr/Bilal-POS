@@ -74,6 +74,7 @@ export default function Cart() {
       }
 
       const balance_due = grandTotal - payment;
+      const today = new Date().toISOString().split('T')[0]; 
 
       const payload = {
         items: cart.map((it) => ({

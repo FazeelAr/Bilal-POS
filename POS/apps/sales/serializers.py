@@ -46,7 +46,7 @@ class OrderCreateSerializer(serializers.Serializer):
     payment_status = serializers.CharField(required=True)
     total_amount = serializers.DecimalField(max_digits=10, decimal_places=2, required=True)
     balance_due = serializers.DecimalField(max_digits=10, decimal_places=2, required=True)
-    date = serializers.DateField(required=False)  # ADD THIS LINE - optional date field
+    date = serializers.DateField(required=False, format='%Y-%m-%d')  # ADD format parameter
 
     def validate_items(self, value):
         if not value:
@@ -55,129 +55,173 @@ class OrderCreateSerializer(serializers.Serializer):
     
     @transaction.atomic
     def create(self, validated_data):
+        logger.info(f"Starting order creation with data: {validated_data}")
         
-        customer_id = validated_data['customer']
-        items_data = validated_data['items']
-        payment_amount = validated_data['payment_amount']
-        payment_status = validated_data['payment_status']
-        total_amount = validated_data['total_amount']
-        balance_due = validated_data['balance_due']
-        payment_method = validated_data.get('payment_method', 'cash')
-        
-        # Get customer
         try:
-            customer = Client.objects.get(id=customer_id)
-        except Client.DoesNotExist:
-            raise serializers.ValidationError({"customer": "Customer not found"})
-        
-        # Calculate total and prepare order items
-        order_total = Decimal('0')
-        order_items_to_create = []
-        
-        for item_data in items_data:
+            # EXTRACT DATE FIRST - THIS IS THE FIX!
+            order_date = validated_data.pop('date', None)
+            logger.info(f"Extracted date from payload: {order_date}")
+            
+            # Convert string to date object if needed
+            if order_date and isinstance(order_date, str):
+                try:
+                    order_date = datetime.strptime(order_date, '%Y-%m-%d').date()
+                    logger.info(f"Converted string to date: {order_date}")
+                except ValueError as e:
+                    logger.error(f"Date format error: {e}. Using today's date.")
+                    order_date = date.today()
+            
+            # If no date provided, use today
+            if order_date:
+                if isinstance(order_date, str):
+                    try:
+                        order_date = datetime.strptime(order_date, '%Y-%m-%d').date()
+                    except ValueError:
+                        order_date = date.today()
+                elif isinstance(order_date, datetime):
+                    order_date = order_date.date()
+            else:
+                order_date = date.today()
+            
+            customer_id = validated_data['customer']
+            items_data = validated_data['items']
+            payment_amount = validated_data['payment_amount']
+            payment_status = validated_data['payment_status']
+            total_amount = validated_data['total_amount']
+            balance_due = validated_data['balance_due']
+            payment_method = validated_data.get('payment_method', 'cash')
+            
+            logger.info(f"Creating order for customer {customer_id} with date {order_date}")
+            
+            # Get customer
             try:
-                product = Item.objects.get(id=item_data['product'])
-            except Item.DoesNotExist:
-                raise serializers.ValidationError({
-                    "items": f"Product {item_data['product']} not found"
+                customer = Client.objects.get(id=customer_id)
+                logger.info(f"Found customer: {customer.name}")
+            except Client.DoesNotExist:
+                logger.error(f"Customer {customer_id} not found")
+                raise serializers.ValidationError({"customer": "Customer not found"})
+            
+            # Calculate total and prepare order items
+            order_total = Decimal('0')
+            order_items_to_create = []
+            
+            for item_data in items_data:
+                try:
+                    product = Item.objects.get(id=item_data['product'])
+                    logger.info(f"Found product: {product.name}")
+                except Item.DoesNotExist:
+                    logger.error(f"Product {item_data['product']} not found")
+                    raise serializers.ValidationError({
+                        "items": f"Product {item_data['product']} not found"
+                    })
+                
+                quantity = item_data['quantity']
+                factor = item_data.get('factor', Decimal('1'))
+                
+                final_price = product.price * factor
+                line_total = final_price * quantity
+                order_total += line_total
+                
+                order_items_to_create.append({
+                    'item': product,
+                    'quantity': quantity,
+                    'price': final_price,
                 })
             
-            quantity = item_data['quantity']
-            factor = item_data.get('factor', Decimal('1'))
+            logger.info(f"Calculated order total: {order_total}")
             
-            # Calculate final price: base_price * factor
-            final_price = product.price * factor
-            line_total = final_price * quantity
+            # Validate total
+            if abs(float(order_total) - float(total_amount)) > 0.01:
+                logger.error(f"Total mismatch: calculated {order_total}, provided {total_amount}")
+                raise serializers.ValidationError({
+                    "total_amount": f"Calculated total ({order_total}) doesn't match provided total ({total_amount})"
+                })
             
-            order_total += line_total
+            # Create order
+            logger.info(f"Creating order with date: {order_date}")
             
-            order_items_to_create.append({
-                'item': product,
-                'quantity': quantity,
-                'price': final_price,  # Store the factored price
-            })
-        
-        # Validate that calculated total matches provided total
-        # Convert to float for comparison to handle Decimal objects properly
-        if abs(float(order_total) - float(total_amount)) > 0.01:  # Allow for rounding differences
-            raise serializers.ValidationError({
-                "total_amount": f"Calculated total ({order_total}) doesn't match provided total ({total_amount})"
-            })
-        
-        # Create order (ID will be auto-generated)
-        order = Order.objects.create(
-            client=customer,
-            total=order_total,
-            date=validated_data.get('date', date.today()),  # CHANGE THIS LINE - use provided date or today
-            payment_amount=payment_amount,
-            payment_method=payment_method,
-            payment_status=payment_status,
-            balance_due=balance_due
-        )
-        
-        # Create order items
-        order_items_created = []
-        for item_data in order_items_to_create:
-            order_item = OrderItem.objects.create(
-                order=order,
-                item=item_data['item'],
-                quantity=item_data['quantity'],
-                price=item_data['price']
-            )
-            order_items_created.append(order_item)
-        
-        # CORRECTED: Update customer balance based on payment
-        net_balance_change = order_total - payment_amount
-        customer.balance += net_balance_change
-        customer.save()
-        
-        # Auto-create receipt after order is created
-        try:
-            # Calculate previous balance (before this transaction)
-            previous_balance = customer.balance - net_balance_change
-            
-            # Generate receipt number
-            receipt_number = f"RCPT-{datetime.now().strftime('%Y%m%d')}-{Receipt.objects.count() + 1:06d}"
-            
-            # Calculate balances for receipt
-            this_bill_balance = max(Decimal('0'), order_total - payment_amount)
-            updated_balance = customer.balance  # This is after the balance update
-            
-            # Create receipt
-            receipt = Receipt.objects.create(
-                order=order,
-                customer=customer,
-                customer_name=customer.name,
-                previous_balance=previous_balance,
-                current_bill_amount=order_total,
-                payment_made=payment_amount,
-                this_bill_balance=this_bill_balance,
-                updated_balance=updated_balance,
+            order = Order.objects.create(
+                client=customer,
+                total=order_total,
+                date=order_date,  # Use the extracted/calculated date
+                payment_amount=payment_amount,
                 payment_method=payment_method,
                 payment_status=payment_status,
-                receipt_number=receipt_number,
+                balance_due=balance_due
             )
             
-            # Create receipt items
-            receipt_items = []
-            for order_item in order_items_created:
-                receipt_items.append(ReceiptItem(
-                    receipt=receipt,
-                    product_name=order_item.item.name,
-                    quantity=order_item.quantity,
-                    unit='kg',  # Adjust based on your product units
-                    price_per_unit=order_item.price,
-                    total=order_item.quantity * order_item.price,
-                    product_id=order_item.item.id
-                ))
+            logger.info(f"Order created with ID: {order.id}")
             
-            ReceiptItem.objects.bulk_create(receipt_items)
+            # Create order items
+            order_items_created = []
+            for item_data in order_items_to_create:
+                order_item = OrderItem.objects.create(
+                    order=order,
+                    item=item_data['item'],
+                    quantity=item_data['quantity'],
+                    price=item_data['price']
+                )
+                order_items_created.append(order_item)
+            
+            logger.info(f"Created {len(order_items_created)} order items")
+            
+            # Update customer balance
+            net_balance_change = order_total - payment_amount
+            customer.balance += net_balance_change
+            customer.save()
+            logger.info(f"Updated customer balance. New balance: {customer.balance}")
+            
+            # Auto-create receipt
+            try:
+                previous_balance = customer.balance - net_balance_change
+                receipt_number = f"RCPT-{datetime.now().strftime('%Y%m%d')}-{Receipt.objects.count() + 1:06d}"
+                this_bill_balance = max(Decimal('0'), order_total - payment_amount)
+                updated_balance = customer.balance
+                
+                logger.info(f"Creating receipt {receipt_number}")
+                
+                receipt = Receipt.objects.create(
+                    order=order,
+                    customer=customer,
+                    customer_name=customer.name,
+                    previous_balance=previous_balance,
+                    current_bill_amount=order_total,
+                    payment_made=payment_amount,
+                    this_bill_balance=this_bill_balance,
+                    updated_balance=updated_balance,
+                    payment_method=payment_method,
+                    payment_status=payment_status,
+                    receipt_number=receipt_number,
+                )
+                
+                logger.info(f"Receipt created with ID: {receipt.id}")
+                
+                # Create receipt items
+                receipt_items = []
+                for order_item in order_items_created:
+                    receipt_items.append(ReceiptItem(
+                        receipt=receipt,
+                        product_name=order_item.item.name,
+                        quantity=order_item.quantity,
+                        unit='kg',
+                        price_per_unit=order_item.price,
+                        total=order_item.quantity * order_item.price,
+                        product_id=order_item.item.id
+                    ))
+                
+                ReceiptItem.objects.bulk_create(receipt_items)
+                logger.info(f"Created {len(receipt_items)} receipt items")
+                
+            except Exception as e:
+                logger.error(f"Failed to create receipt for order {order.id}: {str(e)}")
+                # Don't fail the order creation if receipt fails
+            
+            logger.info(f"Order {order.id} creation completed successfully")
+            return order
             
         except Exception as e:
-            # Log error but don't fail the order creation
-            logger.error(f"Failed to create receipt for order {order.id}: {str(e)}")
-        
-        return order
+            logger.error(f"Order creation failed: {str(e)}", exc_info=True)
+            raise
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
