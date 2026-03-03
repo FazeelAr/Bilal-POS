@@ -6,14 +6,28 @@ import Cart from "../components/Cart";
 import { useCart } from "../context/useCart";
 import { Calendar, User } from "lucide-react";
 
+// Helper function to get local date in YYYY-MM-DD format (handles Pakistan timezone correctly)
+const getLocalDateString = () => {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 export default function Pos() {
   const [products, setProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState("");
-  const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]);
+  const [orderDate, setOrderDate] = useState(getLocalDateString());
   const [loading, setLoading] = useState(true);
   const [customersLoading, setCustomersLoading] = useState(true);
-  const { addToCart, setCurrentCustomer, currentCustomer, setOrderDate: setGlobalOrderDate } = useCart();
+  const {
+    addToCart,
+    setCurrentCustomer,
+    currentCustomer,
+    setOrderDate: setGlobalOrderDate,
+  } = useCart();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -28,7 +42,7 @@ export default function Pos() {
               productId: item.product,
               name: item.name,
               price: Number(item.price),
-            }))
+            })),
           );
         } else {
           setProducts([]);
@@ -79,11 +93,11 @@ export default function Pos() {
   // Format date for display
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      weekday: 'short',
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+    return date.toLocaleDateString("en-US", {
+      weekday: "short",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
   };
 
@@ -97,7 +111,9 @@ export default function Pos() {
         <div className="block sm:flex justify-between items-start mb-4 sm:mb-6">
           {/* Title - Full width on mobile, centered on desktop */}
           <div className="w-full sm:flex-1 text-center mb-4 sm:mb-0">
-            <h1 className="text-white text-2xl sm:text-4xl font-bold mb-1">Point of Sale</h1>
+            <h1 className="text-white text-2xl sm:text-4xl font-bold mb-1">
+              Point of Sale
+            </h1>
             <div className="text-white/80 text-sm mt-1">
               {formatDate(orderDate)}
             </div>
@@ -119,7 +135,6 @@ export default function Pos() {
                     type="date"
                     value={orderDate}
                     onChange={handleDateChange}
-                    max={new Date().toISOString().split('T')[0]} // Can't select future dates
                     className="w-full px-3 py-2.5 rounded-lg border-2 border-white/30 bg-white/95 text-gray-800 font-medium focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent shadow-md transition-all duration-200 hover:bg-white text-sm sm:text-base"
                   />
                   <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
@@ -175,8 +190,19 @@ export default function Pos() {
                   </select>
                   {/* Custom dropdown arrow */}
                   <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                    <svg
+                      className="w-4 h-4 text-gray-500"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M19 9l-7 7-7-7"
+                      ></path>
                     </svg>
                   </div>
                   {customersLoading && (
@@ -210,7 +236,8 @@ export default function Pos() {
               <div className="mt-1.5 grid grid-cols-2 gap-2">
                 {currentCustomer.starting_balance !== undefined && (
                   <div className="text-white/80 text-xs">
-                    <span className="font-semibold">Balance:</span> Rs {currentCustomer.starting_balance.toFixed(2)}
+                    <span className="font-semibold">Balance:</span> Rs{" "}
+                    {currentCustomer.starting_balance.toFixed(2)}
                   </div>
                 )}
                 <div className="text-white/80 text-xs text-right">
@@ -239,7 +266,8 @@ export default function Pos() {
                   <div className="flex justify-between mt-1">
                     {currentCustomer.starting_balance !== undefined && (
                       <div className="text-white/80 text-xs">
-                        <span className="font-semibold">Balance:</span> Rs {currentCustomer.starting_balance.toFixed(2)}
+                        <span className="font-semibold">Balance:</span> Rs{" "}
+                        {currentCustomer.starting_balance.toFixed(2)}
                       </div>
                     )}
                     <div className="text-white/80 text-xs">
